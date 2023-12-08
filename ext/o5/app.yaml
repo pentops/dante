@@ -5,7 +5,7 @@ databases:
   - name: main
     postgres:
       runOutbox: false
-      dbName: o5
+      dbName: dante
       serverGroup: default
       dbExtensions:
         - "uuid-ossp"
