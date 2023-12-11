@@ -3,6 +3,7 @@ module github.com/pentops/dante
 go 1.21.5
 
 require (
+	github.com/lib/pq v1.10.9
 	github.com/pentops/log.go v0.0.0-20230815045424-6ebbd9ef2576
 	github.com/pressly/goose v2.7.0+incompatible
 	golang.org/x/sync v0.5.0
