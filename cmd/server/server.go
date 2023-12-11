@@ -96,8 +96,7 @@ func openDatabase(ctx context.Context) (*sql.DB, error) {
 
 func runServe(ctx context.Context) error {
 	type envConfig struct {
-		ConfigFile string `env:"CONFIG_FILE"`
-		WorkerPort int    `env:"WORKER_PORT" default:"8081"`
+		WorkerPort int `env:"WORKER_PORT" default:"8081"`
 	}
 	cfg := envConfig{}
 	if err := envconf.Parse(&cfg); err != nil {
