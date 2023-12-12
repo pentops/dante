@@ -26,7 +26,7 @@ runtimes:
     grantMetaDeployPermissions: false
 
     subscriptions:
-      - name: "deadletters"
+      - name: "dead-letters" # use the value in Dante's protobuf definitions
 
     containers:
       - name: main
