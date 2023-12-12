@@ -4,7 +4,7 @@ name: "dante"
 databases:
   - name: main
     postgres:
-      runOutbox: false
+      runOutbox: true
       dbName: dante
       serverGroup: default
       dbExtensions:
