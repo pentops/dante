@@ -12,11 +12,13 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/pentops/log.go/grpc_log"
 	"github.com/pentops/log.go/log"
+	"github.com/pentops/o5-go/dante/v1/dante_pb"
 	"github.com/pentops/o5-go/dante/v1/dante_tpb"
 	"github.com/pressly/goose"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"gopkg.daemonl.com/envconf"
 	"gopkg.daemonl.com/sqrlx"
 )
@@ -101,6 +103,12 @@ type DeadletterService struct {
 	db *sqrlx.Wrapper
 
 	dante_tpb.UnimplementedDeadMessageTopicServer
+	dante_pb.UnimplementedDanteQueryServiceServer
+}
+
+func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessage) (*emptypb.Empty, error) {
+	// save message
+	return &emptypb.Empty{}, nil
 }
 
 func NewDeadletterServiceService(conn sqrlx.Connection) (*DeadletterService, error) {

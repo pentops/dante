@@ -10,6 +10,7 @@ require (
 	github.com/pressly/goose v2.7.0+incompatible
 	golang.org/x/sync v0.5.0
 	google.golang.org/grpc v1.59.0
+	google.golang.org/protobuf v1.31.0
 	gopkg.daemonl.com/envconf v0.0.0-20220909014755-d65ec77bd452
 	gopkg.daemonl.com/sqrlx v0.0.25
 )
@@ -27,5 +28,4 @@ require (
 	google.golang.org/genproto v0.0.0-20230822172742-b8732ec3820d // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230822172742-b8732ec3820d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230822172742-b8732ec3820d // indirect
-	google.golang.org/protobuf v1.31.0 // indirect
 )
