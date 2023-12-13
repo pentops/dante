@@ -107,7 +107,7 @@ type DeadletterService struct {
 }
 
 func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessage) (*emptypb.Empty, error) {
-	// save message
+	log.Info(ctx, "Saving message") // TODO: verify this endpoint is being correctly used then remove this and do the work
 	return &emptypb.Empty{}, nil
 }
 
@@ -152,6 +152,7 @@ func runServe(ctx context.Context) error {
 		reflection.Register(grpcServer)
 
 		dante_tpb.RegisterDeadMessageTopicServer(grpcServer, deadletterService)
+		dante_pb.RegisterDanteQueryServiceServer(grpcServer, deadletterService)
 
 		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.WorkerPort))
 		if err != nil {
