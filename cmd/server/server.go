@@ -8,14 +8,19 @@ import (
 	"os"
 	"time"
 
+	sq "github.com/elgris/sqrl"
 	_ "github.com/lib/pq"
 	"github.com/pentops/log.go/grpc_log"
 	"github.com/pentops/log.go/log"
+	"github.com/pentops/o5-go/dante/v1/dante_pb"
+	"github.com/pentops/o5-go/dante/v1/dante_tpb"
 	"github.com/pressly/goose"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"gopkg.daemonl.com/envconf"
+	"gopkg.daemonl.com/sqrlx"
 )
 
 var Version string
@@ -94,12 +99,45 @@ func openDatabase(ctx context.Context) (*sql.DB, error) {
 	return db, nil
 }
 
+type DeadletterService struct {
+	db *sqrlx.Wrapper
+
+	dante_tpb.UnimplementedDeadMessageTopicServer
+	dante_pb.UnimplementedDanteQueryServiceServer
+}
+
+func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessage) (*emptypb.Empty, error) {
+	log.Info(ctx, "Saving message") // TODO: verify this endpoint is being correctly used then remove this and do the work
+	return &emptypb.Empty{}, nil
+}
+
+func NewDeadletterServiceService(conn sqrlx.Connection) (*DeadletterService, error) {
+	db, err := sqrlx.New(conn, sq.Dollar)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DeadletterService{
+		db: db,
+	}, nil
+}
+
 func runServe(ctx context.Context) error {
 	type envConfig struct {
 		WorkerPort int `env:"WORKER_PORT" default:"8081"`
 	}
 	cfg := envConfig{}
 	if err := envconf.Parse(&cfg); err != nil {
+		return err
+	}
+
+	db, err := openDatabase(ctx)
+	if err != nil {
+		return err
+	}
+
+	deadletterService, err := NewDeadletterServiceService(db)
+	if err != nil {
 		return err
 	}
 
@@ -112,6 +150,9 @@ func runServe(ctx context.Context) error {
 		))
 
 		reflection.Register(grpcServer)
+
+		dante_tpb.RegisterDeadMessageTopicServer(grpcServer, deadletterService)
+		dante_pb.RegisterDanteQueryServiceServer(grpcServer, deadletterService)
 
 		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.WorkerPort))
 		if err != nil {
