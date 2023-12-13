@@ -124,7 +124,7 @@ func NewDeadletterServiceService(conn sqrlx.Connection) (*DeadletterService, err
 
 func runServe(ctx context.Context) error {
 	type envConfig struct {
-		WorkerPort int `env:"WORKER_PORT" default:"8081"`
+		WorkerPort int `env:"WORKER_PORT" default:"8080"`
 	}
 	cfg := envConfig{}
 	if err := envconf.Parse(&cfg); err != nil {
