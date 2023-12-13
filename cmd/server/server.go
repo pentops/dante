@@ -124,7 +124,7 @@ func NewDeadletterServiceService(conn sqrlx.Connection) (*DeadletterService, err
 
 func runServe(ctx context.Context) error {
 	type envConfig struct {
-		WorkerPort int `env:"WORKER_PORT" default:"8080"`
+		PublicPort int `env:"PUBLIC_PORT" default:"8080"`
 	}
 	cfg := envConfig{}
 	if err := envconf.Parse(&cfg); err != nil {
@@ -141,7 +141,7 @@ func runServe(ctx context.Context) error {
 		return err
 	}
 
-	log.WithField(ctx, "PORT", cfg.WorkerPort).Info("Boot")
+	log.WithField(ctx, "PORT", cfg.PublicPort).Info("Boot")
 
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
@@ -154,11 +154,11 @@ func runServe(ctx context.Context) error {
 		dante_tpb.RegisterDeadMessageTopicServer(grpcServer, deadletterService)
 		dante_pb.RegisterDanteQueryServiceServer(grpcServer, deadletterService)
 
-		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.WorkerPort))
+		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.PublicPort))
 		if err != nil {
 			return err
 		}
-		log.WithField(ctx, "port", cfg.WorkerPort).Info("Begin Worker Server")
+		log.WithField(ctx, "port", cfg.PublicPort).Info("Begin Worker Server")
 		go func() {
 			<-ctx.Done()
 			grpcServer.GracefulStop() // nolint:errcheck
