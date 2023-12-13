@@ -39,3 +39,5 @@ runtimes:
           - name: POSTGRES_URL
             database:
               databaseName: main
+          - name: PUBLIC_PORT
+            value: "8080"
