@@ -26,7 +26,7 @@ runtimes:
     grantMetaDeployPermissions: false
 
     subscriptions:
-      - name: "dead-letters" # use the value in Dante's protobuf definitions
+      - name: "dead-letter" # Match the name in o5 deployer
 
     containers:
       - name: main
