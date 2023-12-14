@@ -107,7 +107,32 @@ type DeadletterService struct {
 }
 
 func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessage) (*emptypb.Empty, error) {
-	log.Info(ctx, "Saving message") // TODO: verify this endpoint is being correctly used then remove this and do the work
+	log.Info(ctx, "Saving message")
+
+	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+		ReadOnly:  false,
+		Retryable: true,
+	}, func(ctx context.Context, tx sqrlx.Transaction) error {
+		_, err := tx.Insert(ctx, sq.Insert("messages").SetMap(map[string]interface{}{
+			"message_id":    req.Dead.MessageId,
+			"queue_name":    req.Dead.QueueName,
+			"grpc_name":     req.Dead.GrpcName,
+			"time_of_death": req.Dead.RejectedTimestamp,
+			"time_sent":     req.Dead.InitialSentTimestamp,
+			"payload_type":  "TBD",
+			"payload_body":  req.Dead.Payload.Json,
+			"error":         req.Dead.Problem,
+		}).Suffix("ON CONFLICT(message_id) DO NOTHING"))
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
 	return &emptypb.Empty{}, nil
 }
 
