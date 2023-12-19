@@ -109,6 +109,13 @@ type DeadletterService struct {
 func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessage) (*emptypb.Empty, error) {
 	log.Info(ctx, "Saving message")
 
+	details := ""
+	if req.Dead.GetInvariantViolation() != nil {
+		details = req.Dead.GetInvariantViolation().String()
+	} else if req.Dead.GetUnhandledError() != nil {
+		details = req.Dead.GetUnhandledError().String()
+	}
+
 	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
 		Isolation: sql.LevelReadCommitted,
 		ReadOnly:  false,
@@ -118,11 +125,11 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 			"message_id":    req.Dead.MessageId,
 			"queue_name":    req.Dead.QueueName,
 			"grpc_name":     req.Dead.GrpcName,
-			"time_of_death": req.Dead.RejectedTimestamp,
-			"time_sent":     req.Dead.InitialSentTimestamp,
+			"time_of_death": req.Dead.RejectedTimestamp.AsTime(),
+			"time_sent":     req.Dead.InitialSentTimestamp.AsTime(),
 			"payload_type":  "TBD",
 			"payload_body":  req.Dead.Payload.Json,
-			"error":         req.Dead.Problem,
+			"error":         details,
 		}).Suffix("ON CONFLICT(message_id) DO NOTHING"))
 		if err != nil {
 			return err
