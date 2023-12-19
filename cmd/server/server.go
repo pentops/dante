@@ -18,6 +18,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"gopkg.daemonl.com/envconf"
 	"gopkg.daemonl.com/sqrlx"
@@ -109,12 +110,13 @@ type DeadletterService struct {
 func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessage) (*emptypb.Empty, error) {
 	log.Info(ctx, "Saving message")
 
-	details := ""
-	if req.Dead.GetInvariantViolation() != nil {
-		details = req.Dead.GetInvariantViolation().String()
-	} else if req.Dead.GetUnhandledError() != nil {
-		details = req.Dead.GetUnhandledError().String()
+	msg_json, err := protojson.Marshal(req.Dead)
+	if err != nil {
+		log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
+		return nil, err
 	}
+
+	log.Infof(ctx, "Message as json: '%v'", string(msg_json))
 
 	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
 		Isolation: sql.LevelReadCommitted,
@@ -122,14 +124,8 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		Retryable: true,
 	}, func(ctx context.Context, tx sqrlx.Transaction) error {
 		_, err := tx.Insert(ctx, sq.Insert("messages").SetMap(map[string]interface{}{
-			"message_id":    req.Dead.MessageId,
-			"queue_name":    req.Dead.QueueName,
-			"grpc_name":     req.Dead.GrpcName,
-			"time_of_death": req.Dead.RejectedTimestamp.AsTime(),
-			"time_sent":     req.Dead.InitialSentTimestamp.AsTime(),
-			"payload_type":  "TBD",
-			"payload_body":  req.Dead.Payload.Json,
-			"error":         details,
+			"message_id": req.Dead.MessageId,
+			"deadletter": msg_json,
 		}).Suffix("ON CONFLICT(message_id) DO NOTHING"))
 		if err != nil {
 			return err
