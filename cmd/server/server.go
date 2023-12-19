@@ -108,15 +108,11 @@ type DeadletterService struct {
 }
 
 func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessage) (*emptypb.Empty, error) {
-	log.Info(ctx, "Saving message")
-
 	msg_json, err := protojson.Marshal(req.Dead)
 	if err != nil {
 		log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
 		return nil, err
 	}
-
-	log.Infof(ctx, "Message as json: '%v'", string(msg_json))
 
 	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
 		Isolation: sql.LevelReadCommitted,
@@ -133,6 +129,7 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 
 		return nil
 	}); err != nil {
+		log.WithError(ctx, err).Error("Couldn't save dead letter to database")
 		return nil, err
 	}
 
