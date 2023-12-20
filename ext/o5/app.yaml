@@ -26,7 +26,7 @@ runtimes:
     grantMetaDeployPermissions: false
 
     routes:
-      - prefix: "/admin/dante/*"
+      - prefix: "/dante/v1/*"
         protocol: ROUTE_PROTOCOL_HTTP
 
     subscriptions:
