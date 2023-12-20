@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -105,6 +106,53 @@ type DeadletterService struct {
 
 	dante_tpb.UnimplementedDeadMessageTopicServer
 	dante_pb.UnimplementedDanteQueryServiceServer
+}
+
+func (ds *DeadletterService) ListMessages(ctx context.Context, req *dante_pb.ListMessagesRequest) (*dante_pb.ListMessagesResponse, error) {
+	res := dante_pb.ListMessagesResponse{}
+
+	q := sq.Select(
+		"deadletter",
+	).From("messages").Limit(10) // pagination to be done later
+
+	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+		ReadOnly:  false,
+		Retryable: true,
+	}, func(ctx context.Context, tx sqrlx.Transaction) error {
+		rows, err := tx.Select(ctx, q)
+
+		if err != nil {
+			log.WithError(ctx, err).Error("Couldn't query database")
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			deadJson := ""
+
+			if err := rows.Scan(
+				&deadJson,
+			); err != nil {
+				return err
+			}
+
+			deadProto := dante_pb.DeadMessage{}
+			err = protojson.Unmarshal([]byte(deadJson), &deadProto)
+			if err != nil {
+				log.WithError(ctx, err).Error("Couldn't unmarshal dead letter")
+				return err
+			}
+			res.Messages = append(res.Messages, &dante_pb.CapturedMessage{Cause: &deadProto})
+		}
+
+		return nil
+	}); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		log.WithError(ctx, err).Error("Couldn't read dead letters")
+		return nil, err
+	}
+
+	return &res, nil
 }
 
 func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessage) (*emptypb.Empty, error) {
