@@ -15,6 +15,10 @@ import (
 	"github.com/pentops/log.go/log"
 	"github.com/pentops/o5-go/dante/v1/dante_pb"
 	"github.com/pentops/o5-go/dante/v1/dante_tpb"
+
+	_ "github.com/pentops/o5-go/deployer/v1/deployer_pb"
+	_ "github.com/pentops/o5-go/deployer/v1/deployer_tpb"
+
 	"github.com/pressly/goose"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
