@@ -6,7 +6,7 @@ require (
 	github.com/elgris/sqrl v0.0.0-20210727210741-7e0198b30236
 	github.com/lib/pq v1.10.9
 	github.com/pentops/log.go v0.0.0-20230815045424-6ebbd9ef2576
-	github.com/pentops/o5-go v0.0.0-20231211234932-9e9c4d039e8d
+	github.com/pentops/o5-go v0.0.0-20231220062110-5d1223c7f9a0
 	github.com/pressly/goose v2.7.0+incompatible
 	golang.org/x/sync v0.5.0
 	google.golang.org/grpc v1.59.0
