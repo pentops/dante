@@ -7,8 +7,12 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	sq "github.com/elgris/sqrl"
 	_ "github.com/lib/pq"
 	"github.com/pentops/log.go/grpc_log"
@@ -16,10 +20,16 @@ import (
 	"github.com/pentops/o5-go/dante/v1/dante_pb"
 	"github.com/pentops/o5-go/dante/v1/dante_tpb"
 	"github.com/pressly/goose"
+
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/reflect/protodesc"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"gopkg.daemonl.com/envconf"
 	"gopkg.daemonl.com/sqrlx"
@@ -195,12 +205,94 @@ func NewDeadletterServiceService(conn sqrlx.Connection) (*DeadletterService, err
 	}, nil
 }
 
+func loadExternalProtobufSrc(ctx context.Context, s3Src string) error {
+	if len(s3Src) == 0 {
+		return nil
+	}
+
+	awsConfig, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to load configuration for s3 access: %w", err)
+	}
+	s3Client := s3.NewFromConfig(awsConfig)
+
+	// s3Src will be like:
+	// s3://BUCKETNAME/KEY
+	f := strings.Replace(s3Src, "s3://", "", 1)
+	// now BUCKETNAME/KEY
+	bucket := strings.Split(f, "/")[0]
+	key := strings.Replace(f, bucket+"/", "", 1)
+
+	getObjReq := s3.GetObjectInput{
+		Bucket: &bucket,
+		Key:    &key,
+	}
+	downloader := manager.NewDownloader(s3Client)
+	fd, err := os.Create(key)
+	if err != nil {
+		log.Infof(ctx, "Couldn't create file to download to: %v", err.Error())
+		return err
+	}
+	defer fd.Close()
+
+	_, err = downloader.Download(ctx, fd, &getObjReq)
+	if err != nil {
+		log.Infof(ctx, "Couldn't download file: %v", err.Error())
+		return err
+	}
+
+	before := protoregistry.GlobalFiles.NumFiles()
+	protoFile, err := os.ReadFile(key)
+	if err != nil {
+		log.Infof(ctx, "Couldn't read downloaded file: %v", err.Error())
+		return err
+	}
+
+	fds := &descriptorpb.FileDescriptorSet{}
+	err = prototext.Unmarshal(protoFile, fds)
+	if err != nil {
+		log.Infof(ctx, "Couldn't unmarshal file protofile: %v", err.Error())
+		return err
+	}
+	fp, err := protodesc.NewFiles(fds)
+	if err != nil {
+		log.Infof(ctx, "Couldn't convert to registry file: %v", err.Error())
+		return err
+	}
+
+	fp.RangeFiles(func(a protoreflect.FileDescriptor) bool {
+		q, _ := protoregistry.GlobalFiles.FindFileByPath(a.Path())
+		if q == nil {
+			err := protoregistry.GlobalFiles.RegisterFile(a)
+			if err != nil {
+				log.Infof(ctx, "Couldn't load %v into protoregistry: %v", a, err.Error())
+			}
+		}
+		return true
+	})
+
+	loaded := protoregistry.GlobalFiles.NumFiles() - before
+	if loaded > 0 {
+		log.Infof(ctx, "Loaded %v external proto defs", loaded)
+	} else {
+		log.Info(ctx, "Attempted to load external proto defs but none were registered")
+	}
+
+	return nil
+}
+
 func runServe(ctx context.Context) error {
 	type envConfig struct {
-		PublicPort int `env:"PUBLIC_PORT" default:"8080"`
+		PublicPort    int    `env:"PUBLIC_PORT" default:"8080"`
+		S3ProtobufSrc string `env:"PROTOBUF_SRC" default:""`
 	}
 	cfg := envConfig{}
 	if err := envconf.Parse(&cfg); err != nil {
+		return err
+	}
+
+	err := loadExternalProtobufSrc(ctx, cfg.S3ProtobufSrc)
+	if err != nil {
 		return err
 	}
 
