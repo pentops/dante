@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -267,14 +268,15 @@ func loadExternalProtobufs(ctx context.Context, s3Src string) error {
 
 	// s3Src will be like:
 	// s3://BUCKETNAME/KEY
+	log.Infof(ctx, "s3 src is '%v'", s3Src)
 	f := strings.Replace(s3Src, "s3://", "", 1)
 	// now BUCKETNAME/KEY
 	bucket := strings.Split(f, "/")[0]
 	key := strings.Replace(f, bucket, "", 1)
 
 	getObjReq := s3.GetObjectInput{
-		Bucket: &bucket,
-		Key:    &key,
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
 	}
 	log.Infof(ctx, "get obj request bucket '%v' and key is '%v'", bucket, key)
 	downloader := manager.NewDownloader(s3Client)
