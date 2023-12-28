@@ -205,7 +205,56 @@ func NewDeadletterServiceService(conn sqrlx.Connection) (*DeadletterService, err
 	}, nil
 }
 
-func loadExternalProtobufSrc(ctx context.Context, s3Src string) error {
+func loadProtoFromFile(ctx context.Context, fileName string) error {
+	protoFile, err := os.ReadFile(fileName)
+	if err != nil {
+		log.Infof(ctx, "Couldn't read file: %v", err.Error())
+		return err
+	}
+
+	fds := &descriptorpb.FileDescriptorSet{}
+	err = prototext.Unmarshal(protoFile, fds)
+	if err != nil {
+		log.Infof(ctx, "Couldn't unmarshal file protofile: %v", err.Error())
+		return err
+	}
+	fp, err := protodesc.NewFiles(fds)
+	if err != nil {
+		log.Infof(ctx, "Couldn't convert to registry file: %v", err.Error())
+		return err
+	}
+
+	fp.RangeFiles(func(a protoreflect.FileDescriptor) bool {
+		q, _ := protoregistry.GlobalFiles.FindFileByPath(a.Path())
+		if q == nil {
+			err := protoregistry.GlobalFiles.RegisterFile(a)
+			if err != nil {
+				log.Infof(ctx, "Couldn't load %v into protoregistry: %v", a, err.Error())
+			}
+		}
+		return true
+	})
+	return nil
+}
+
+func loadLocalExternalProtobufs(ctx context.Context) error {
+	before := protoregistry.GlobalFiles.NumFiles()
+
+	err := loadProtoFromFile(ctx, "./pentops-o5.binpb")
+	if err != nil {
+		log.Infof(ctx, "Couldn't load file from s3 source: %v", err.Error())
+	}
+
+	loaded := protoregistry.GlobalFiles.NumFiles() - before
+	if loaded > 0 {
+		log.Infof(ctx, "Loaded %v external local proto defs", loaded)
+	} else {
+		log.Info(ctx, "Attempted to load external local proto defs but none were registered")
+	}
+	return nil
+}
+
+func loadExternalProtobufs(ctx context.Context, s3Src string) error {
 	if len(s3Src) == 0 {
 		return nil
 	}
@@ -242,34 +291,10 @@ func loadExternalProtobufSrc(ctx context.Context, s3Src string) error {
 	}
 
 	before := protoregistry.GlobalFiles.NumFiles()
-	protoFile, err := os.ReadFile(key)
+	err = loadProtoFromFile(ctx, key)
 	if err != nil {
-		log.Infof(ctx, "Couldn't read downloaded file: %v", err.Error())
-		return err
+		log.Infof(ctx, "Couldn't load file from s3 source: %v", err.Error())
 	}
-
-	fds := &descriptorpb.FileDescriptorSet{}
-	err = prototext.Unmarshal(protoFile, fds)
-	if err != nil {
-		log.Infof(ctx, "Couldn't unmarshal file protofile: %v", err.Error())
-		return err
-	}
-	fp, err := protodesc.NewFiles(fds)
-	if err != nil {
-		log.Infof(ctx, "Couldn't convert to registry file: %v", err.Error())
-		return err
-	}
-
-	fp.RangeFiles(func(a protoreflect.FileDescriptor) bool {
-		q, _ := protoregistry.GlobalFiles.FindFileByPath(a.Path())
-		if q == nil {
-			err := protoregistry.GlobalFiles.RegisterFile(a)
-			if err != nil {
-				log.Infof(ctx, "Couldn't load %v into protoregistry: %v", a, err.Error())
-			}
-		}
-		return true
-	})
 
 	loaded := protoregistry.GlobalFiles.NumFiles() - before
 	if loaded > 0 {
@@ -291,7 +316,12 @@ func runServe(ctx context.Context) error {
 		return err
 	}
 
-	err := loadExternalProtobufSrc(ctx, cfg.S3ProtobufSrc)
+	err := loadExternalProtobufs(ctx, cfg.S3ProtobufSrc)
+	if err != nil {
+		return err
+	}
+
+	err = loadLocalExternalProtobufs(ctx)
 	if err != nil {
 		return err
 	}
