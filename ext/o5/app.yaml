@@ -1,6 +1,9 @@
 ---
 name: "dante"
 
+secrets:
+  - name: s3protobufsrc
+
 databases:
   - name: main
     postgres:

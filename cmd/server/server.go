@@ -277,7 +277,9 @@ func loadExternalProtobufs(ctx context.Context, s3Src string) error {
 		Key:    &key,
 	}
 	downloader := manager.NewDownloader(s3Client)
-	fd, err := os.Create(key)
+	// currently handles a single external S3 resource
+	filename := "s3-proto.bin"
+	fd, err := os.Create(filename)
 	if err != nil {
 		log.Infof(ctx, "Couldn't create file to download to: %v", err.Error())
 		return err
@@ -291,7 +293,7 @@ func loadExternalProtobufs(ctx context.Context, s3Src string) error {
 	}
 
 	before := protoregistry.GlobalFiles.NumFiles()
-	err = loadProtoFromFile(ctx, key)
+	err = loadProtoFromFile(ctx, filename)
 	if err != nil {
 		log.Infof(ctx, "Couldn't load file from s3 source: %v", err.Error())
 	}
