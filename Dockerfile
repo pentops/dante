@@ -1,8 +1,10 @@
+FROM bufbuild/buf AS bufdownload
+RUN buf build buf.build/pentops/o5 -o pentops-o5.binpb
+
 FROM golang:1.21 AS builder
 
 RUN mkdir /src
 WORKDIR /src
-
 
 COPY go.mod go.sum .
 RUN --mount=type=cache,target=/go/pkg/mod \
@@ -25,6 +27,9 @@ COPY --from=builder /server /server
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=builder /src/ext/db /migrations
+
+COPY --from=bufdownload pentops-o5.binpb /pentops-o5.binpb
+
 ENV MIGRATIONS_DIR=/migrations
 
 CMD ["serve"]
