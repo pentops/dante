@@ -25,7 +25,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -213,7 +213,7 @@ func loadProtoFromFile(ctx context.Context, fileName string) error {
 	}
 
 	fds := &descriptorpb.FileDescriptorSet{}
-	err = prototext.Unmarshal(protoFile, fds)
+	err = proto.Unmarshal(protoFile, fds)
 	if err != nil {
 		log.Infof(ctx, "Couldn't unmarshal file protofile: %v", err.Error())
 		return err
@@ -237,12 +237,12 @@ func loadProtoFromFile(ctx context.Context, fileName string) error {
 	return nil
 }
 
-func loadLocalExternalProtobufs(ctx context.Context) error {
+func loadLocalExternalProtobufs(ctx context.Context, fileName string) error {
 	before := protoregistry.GlobalFiles.NumFiles()
 
-	err := loadProtoFromFile(ctx, "./pentops-o5.binpb")
+	err := loadProtoFromFile(ctx, fileName)
 	if err != nil {
-		log.Infof(ctx, "Couldn't load file from s3 source: %v", err.Error())
+		log.Infof(ctx, "Couldn't load file from local source: %v", err.Error())
 	}
 
 	loaded := protoregistry.GlobalFiles.NumFiles() - before
@@ -321,7 +321,7 @@ func runServe(ctx context.Context) error {
 		return err
 	}
 
-	err = loadLocalExternalProtobufs(ctx)
+	err = loadLocalExternalProtobufs(ctx, "./pentops-o5.binpb")
 	if err != nil {
 		return err
 	}
