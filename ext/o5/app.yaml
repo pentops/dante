@@ -45,3 +45,7 @@ runtimes:
               databaseName: main
           - name: PUBLIC_PORT
             value: "8080"
+          - name: S3_PROTOBUFS
+            secret:
+              secretName: s3protobufsrc
+              jsonKey: s3protobufuri

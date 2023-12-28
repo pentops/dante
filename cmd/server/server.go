@@ -309,7 +309,7 @@ func loadExternalProtobufs(ctx context.Context, s3Src string) error {
 func runServe(ctx context.Context) error {
 	type envConfig struct {
 		PublicPort    int    `env:"PUBLIC_PORT" default:"8080"`
-		S3ProtobufSrc string `env:"PROTOBUF_SRC" default:""`
+		S3ProtobufSrc string `env:"S3_PROTOBUFS" default:""`
 	}
 	cfg := envConfig{}
 	if err := envconf.Parse(&cfg); err != nil {
