@@ -276,6 +276,7 @@ func loadExternalProtobufs(ctx context.Context, s3Src string) error {
 		Bucket: &bucket,
 		Key:    &key,
 	}
+	log.Infof(ctx, "get obj request is %+v", getObjReq)
 	downloader := manager.NewDownloader(s3Client)
 	// currently handles a single external S3 resource
 	filename := "s3-proto.bin"
