@@ -270,13 +270,13 @@ func loadExternalProtobufs(ctx context.Context, s3Src string) error {
 	f := strings.Replace(s3Src, "s3://", "", 1)
 	// now BUCKETNAME/KEY
 	bucket := strings.Split(f, "/")[0]
-	key := strings.Replace(f, bucket+"/", "", 1)
+	key := strings.Replace(f, bucket, "", 1)
 
 	getObjReq := s3.GetObjectInput{
 		Bucket: &bucket,
 		Key:    &key,
 	}
-	log.Infof(ctx, "get obj request is %+v", getObjReq)
+	log.Infof(ctx, "get obj request bucket '%v' and key is '%v'", bucket, key)
 	downloader := manager.NewDownloader(s3Client)
 	// currently handles a single external S3 resource
 	filename := "s3-proto.bin"
