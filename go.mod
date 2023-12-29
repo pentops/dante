@@ -5,7 +5,6 @@ go 1.21.5
 require (
 	github.com/aws/aws-sdk-go-v2 v1.24.0
 	github.com/aws/aws-sdk-go-v2/config v1.25.10
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.15.3
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.47.1
 	github.com/elgris/sqrl v0.0.0-20210727210741-7e0198b30236
 	github.com/lib/pq v1.10.9
@@ -39,7 +38,6 @@ require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/uuid v1.3.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.1 // indirect
-	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/pkg/errors v0.8.1 // indirect
 	golang.org/x/exp v0.0.0-20230711153332-06a737ee72cb // indirect
 	golang.org/x/net v0.14.0 // indirect
@@ -48,4 +46,5 @@ require (
 	google.golang.org/genproto v0.0.0-20230822172742-b8732ec3820d // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230822172742-b8732ec3820d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230822172742-b8732ec3820d // indirect
+	gopkg.in/yaml.v2 v2.2.8 // indirect
 )

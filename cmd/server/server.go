@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	sq "github.com/elgris/sqrl"
 	_ "github.com/lib/pq"
@@ -279,20 +279,20 @@ func loadExternalProtobufs(ctx context.Context, s3Src string) error {
 		Key:    aws.String(key),
 	}
 	log.Infof(ctx, "get obj request bucket '%v' and key is '%v'", bucket, key)
-	downloader := manager.NewDownloader(s3Client)
-	// currently handles a single external S3 resource
-	filename := "s3-proto.bin"
-	fd, err := os.Create(filename)
-	if err != nil {
-		log.Infof(ctx, "Couldn't create file to download to: %v", err.Error())
-		return err
-	}
-	defer fd.Close()
 
-	_, err = downloader.Download(ctx, fd, &getObjReq)
+	output, err := s3Client.GetObject(context.Background(), &getObjReq)
 	if err != nil {
-		log.Infof(ctx, "Couldn't download file: %v", err.Error())
-		return err
+		return fmt.Errorf("get s3 object: '%s' key: '%s': %w", bucket, key, err)
+	}
+
+	protoBytes, err := io.ReadAll(output.Body)
+	if err != nil {
+		return fmt.Errorf("couldn't read download: %v", err)
+	}
+	filename := "s3-proto.bin"
+	err = os.WriteFile(filename, protoBytes, 0644)
+	if err != nil {
+		return fmt.Errorf("couldn't write file: %v", err)
 	}
 
 	before := protoregistry.GlobalFiles.NumFiles()
