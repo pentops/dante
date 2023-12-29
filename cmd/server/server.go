@@ -260,7 +260,8 @@ func loadExternalProtobufs(ctx context.Context, s3Src string) error {
 		return nil
 	}
 
-	awsConfig, err := config.LoadDefaultConfig(ctx)
+	// setting the region should not be required because it's set via env vars but let's try:
+	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion("us-east-1"))
 	if err != nil {
 		return fmt.Errorf("failed to load configuration for s3 access: %w", err)
 	}
