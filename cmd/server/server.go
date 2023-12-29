@@ -272,7 +272,7 @@ func loadExternalProtobufs(ctx context.Context, s3Src string) error {
 	f := strings.Replace(s3Src, "s3://", "", 1)
 	// now BUCKETNAME/KEY
 	bucket := strings.Split(f, "/")[0]
-	key := strings.Replace(f, bucket, "", 1)
+	key := strings.Replace(f, bucket+"/", "", 1)
 
 	getObjReq := s3.GetObjectInput{
 		Bucket: aws.String(bucket),
