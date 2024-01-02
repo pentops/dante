@@ -5,14 +5,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"os"
-	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	sq "github.com/elgris/sqrl"
 	_ "github.com/lib/pq"
 	"github.com/pentops/log.go/grpc_log"
@@ -254,51 +252,46 @@ func loadLocalExternalProtobufs(ctx context.Context, fileName string) error {
 	return nil
 }
 
-func loadExternalProtobufs(ctx context.Context, s3Src string) error {
-	if len(s3Src) == 0 {
+func loadExternalProtobufs(ctx context.Context, src string) error {
+	if len(src) == 0 {
 		return nil
 	}
 
-	awsConfig, err := config.LoadDefaultConfig(ctx)
+	res, err := http.Get(src)
 	if err != nil {
-		return fmt.Errorf("failed to load configuration for s3 access: %w", err)
+		log.Infof(ctx, "Couldn't get file from %v: %v", src, err.Error())
+		return err
 	}
-	s3Client := s3.NewFromConfig(awsConfig)
-
-	// s3Src will be like:
-	// s3://BUCKETNAME/KEY
-	f := strings.Replace(s3Src, "s3://", "", 1)
-	// now BUCKETNAME/KEY
-	bucket := strings.Split(f, "/")[0]
-	key := strings.Replace(f, bucket+"/", "", 1)
-
-	getObjReq := s3.GetObjectInput{
-		Bucket: &bucket,
-		Key:    &key,
+	body, err := io.ReadAll(res.Body)
+	res.Body.Close()
+	if res.StatusCode > 299 {
+		log.Infof(ctx, "got status code %v instead of 2xx", res.StatusCode)
+		return err
 	}
-	downloader := manager.NewDownloader(s3Client)
-	fd, err := os.Create(key)
+	file := "./tmpprotos"
+
+	fd, err := os.Create(file)
 	if err != nil {
 		log.Infof(ctx, "Couldn't create file to download to: %v", err.Error())
 		return err
 	}
-	defer fd.Close()
-
-	_, err = downloader.Download(ctx, fd, &getObjReq)
+	_, err = fd.Write(body)
 	if err != nil {
-		log.Infof(ctx, "Couldn't download file: %v", err.Error())
+		fd.Close()
+		log.Infof(ctx, "Couldn't write file: %v", err.Error())
 		return err
 	}
+	fd.Close()
 
 	before := protoregistry.GlobalFiles.NumFiles()
-	err = loadProtoFromFile(ctx, key)
+	err = loadProtoFromFile(ctx, file)
 	if err != nil {
-		log.Infof(ctx, "Couldn't load file from s3 source: %v", err.Error())
+		log.Infof(ctx, "Couldn't load file from http source: %v", err.Error())
 	}
 
 	loaded := protoregistry.GlobalFiles.NumFiles() - before
 	if loaded > 0 {
-		log.Infof(ctx, "Loaded %v external proto defs", loaded)
+		log.Infof(ctx, "Loaded %v external proto defs via http", loaded)
 	} else {
 		log.Info(ctx, "Attempted to load external proto defs but none were registered")
 	}
@@ -308,15 +301,15 @@ func loadExternalProtobufs(ctx context.Context, s3Src string) error {
 
 func runServe(ctx context.Context) error {
 	type envConfig struct {
-		PublicPort    int    `env:"PUBLIC_PORT" default:"8080"`
-		S3ProtobufSrc string `env:"PROTOBUF_SRC" default:""`
+		PublicPort  int    `env:"PUBLIC_PORT" default:"8080"`
+		ProtobufSrc string `env:"PROTOBUF_SRC" default:""`
 	}
 	cfg := envConfig{}
 	if err := envconf.Parse(&cfg); err != nil {
 		return err
 	}
 
-	err := loadExternalProtobufs(ctx, cfg.S3ProtobufSrc)
+	err := loadExternalProtobufs(ctx, cfg.ProtobufSrc)
 	if err != nil {
 		return err
 	}

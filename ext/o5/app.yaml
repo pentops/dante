@@ -1,6 +1,9 @@
 ---
 name: "dante"
 
+secrets:
+  - name: protobufsrc
+
 databases:
   - name: main
     postgres:
@@ -45,3 +48,7 @@ runtimes:
               databaseName: main
           - name: PUBLIC_PORT
             value: "8080"
+          - name: PROTOBUF_SRC
+            secret:
+              secretName: protobufsrc
+              jsonKey: protobufuri
