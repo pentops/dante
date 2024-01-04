@@ -16,6 +16,7 @@ import (
 	"github.com/pentops/log.go/grpc_log"
 	"github.com/pentops/log.go/log"
 	"github.com/pentops/o5-go/dante/v1/dante_pb"
+	"github.com/pentops/o5-go/dante/v1/dante_spb"
 	"github.com/pentops/o5-go/dante/v1/dante_tpb"
 	"github.com/pressly/goose"
 
@@ -113,11 +114,12 @@ type DeadletterService struct {
 	db *sqrlx.Wrapper
 
 	dante_tpb.UnimplementedDeadMessageTopicServer
-	dante_pb.UnimplementedDanteQueryServiceServer
+	dante_spb.UnimplementedDeadMessageQueryServiceServer
+	dante_spb.UnimplementedDeadMessageCommandServiceServer
 }
 
-func (ds *DeadletterService) ListMessages(ctx context.Context, req *dante_pb.ListMessagesRequest) (*dante_pb.ListMessagesResponse, error) {
-	res := dante_pb.ListMessagesResponse{}
+func (ds *DeadletterService) ListMessages(ctx context.Context, req *dante_spb.ListDeadMessagesRequest) (*dante_spb.ListDeadMessagesResponse, error) {
+	res := dante_spb.ListDeadMessagesResponse{}
 
 	q := sq.Select(
 		"deadletter",
@@ -145,13 +147,13 @@ func (ds *DeadletterService) ListMessages(ctx context.Context, req *dante_pb.Lis
 				return err
 			}
 
-			deadProto := dante_pb.DeadMessage{}
+			deadProto := dante_pb.DeadMessageSpec{}
 			err = protojson.Unmarshal([]byte(deadJson), &deadProto)
 			if err != nil {
 				log.WithError(ctx, err).Error("Couldn't unmarshal dead letter")
 				return err
 			}
-			res.Messages = append(res.Messages, &dante_pb.CapturedMessage{Cause: &deadProto})
+			res.Messages = append(res.Messages, &dante_pb.DeadMessageState{CurrentSpec: &deadProto})
 		}
 
 		return nil
@@ -164,7 +166,7 @@ func (ds *DeadletterService) ListMessages(ctx context.Context, req *dante_pb.Lis
 }
 
 func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessage) (*emptypb.Empty, error) {
-	msg_json, err := protojson.Marshal(req.Dead)
+	msg_json, err := protojson.Marshal(req)
 	if err != nil {
 		log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
 		return nil, err
@@ -176,7 +178,7 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		Retryable: true,
 	}, func(ctx context.Context, tx sqrlx.Transaction) error {
 		_, err := tx.Insert(ctx, sq.Insert("messages").SetMap(map[string]interface{}{
-			"message_id": req.Dead.MessageId,
+			"message_id": req.MessageId,
 			"deadletter": msg_json,
 		}).Suffix("ON CONFLICT(message_id) DO NOTHING"))
 		if err != nil {
@@ -340,7 +342,8 @@ func runServe(ctx context.Context) error {
 		reflection.Register(grpcServer)
 
 		dante_tpb.RegisterDeadMessageTopicServer(grpcServer, deadletterService)
-		dante_pb.RegisterDanteQueryServiceServer(grpcServer, deadletterService)
+		dante_spb.RegisterDeadMessageCommandServiceServer(grpcServer, deadletterService)
+		dante_spb.RegisterDeadMessageQueryServiceServer(grpcServer, deadletterService)
 
 		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.PublicPort))
 		if err != nil {
