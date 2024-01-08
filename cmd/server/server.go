@@ -12,6 +12,7 @@ import (
 	"time"
 
 	sq "github.com/elgris/sqrl"
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/pentops/log.go/grpc_log"
 	"github.com/pentops/log.go/log"
@@ -118,7 +119,7 @@ type DeadletterService struct {
 	dante_spb.UnimplementedDeadMessageCommandServiceServer
 }
 
-func (ds *DeadletterService) ListMessages(ctx context.Context, req *dante_spb.ListDeadMessagesRequest) (*dante_spb.ListDeadMessagesResponse, error) {
+func (ds *DeadletterService) ListDeadMessages(ctx context.Context, req *dante_spb.ListDeadMessagesRequest) (*dante_spb.ListDeadMessagesResponse, error) {
 	res := dante_spb.ListDeadMessagesResponse{}
 
 	q := sq.Select(
@@ -166,7 +167,17 @@ func (ds *DeadletterService) ListMessages(ctx context.Context, req *dante_spb.Li
 }
 
 func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessage) (*emptypb.Empty, error) {
-	msg_json, err := protojson.Marshal(req)
+	s := dante_pb.DeadMessageSpec{
+		VersionId:      uuid.NewString(),
+		InfraMessageId: req.InfraMessageId,
+		QueueName:      req.QueueName,
+		GrpcName:       req.GrpcName,
+		CreatedAt:      req.Timestamp,
+		Payload:        req.Payload,
+		Problem:        req.GetProblem(),
+	}
+
+	msg_json, err := protojson.Marshal(&s)
 	if err != nil {
 		log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
 		return nil, err

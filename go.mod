@@ -6,7 +6,7 @@ require (
 	github.com/elgris/sqrl v0.0.0-20210727210741-7e0198b30236
 	github.com/lib/pq v1.10.9
 	github.com/pentops/log.go v0.0.0-20230815045424-6ebbd9ef2576
-	github.com/pentops/o5-go v0.0.0-20240103191826-234a4df7c841
+	github.com/pentops/o5-go v0.0.0-20240108181354-69adf8151c27
 	github.com/pressly/goose v2.7.0+incompatible
 	golang.org/x/sync v0.5.0
 	google.golang.org/grpc v1.59.0
@@ -20,7 +20,7 @@ require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/uuid v1.4.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
-	github.com/pentops/protostate v0.0.0-20231222015008-a77f48709d88 // indirect
+	github.com/pentops/protostate v0.0.0-20240105003357-a960043b46e7 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	golang.org/x/exp v0.0.0-20231206192017-f3f8817b8deb // indirect
 	golang.org/x/net v0.19.0 // indirect
