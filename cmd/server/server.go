@@ -23,7 +23,9 @@ import (
 
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
@@ -119,6 +121,48 @@ type DeadletterService struct {
 	dante_spb.UnimplementedDeadMessageCommandServiceServer
 }
 
+func (ds *DeadletterService) GetDeadMessage(ctx context.Context, req *dante_spb.GetDeadMessageRequest) (*dante_spb.GetDeadMessageResponse, error) {
+	res := dante_spb.GetDeadMessageResponse{}
+
+	var message_id string
+	var created_at, updated_at string
+	var deadletter string
+
+	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+		ReadOnly:  true,
+		Retryable: true,
+	}, func(ctx context.Context, tx sqrlx.Transaction) error {
+		q := sq.Select("message_id, created_at, updated_at, deadletter").From("messages").Where("message_id = ?", *req.MessageId)
+		err := tx.QueryRow(ctx, q).Scan(&message_id, &created_at, &updated_at, &deadletter)
+		return err
+
+	}); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		log.WithError(ctx, err).Error("Couldn't get dead letter")
+		return nil, err
+	} else if err != nil && errors.Is(err, sql.ErrNoRows) {
+		return nil, status.Error(codes.NotFound, "Dead letter not found")
+	}
+
+	deadProto := dante_pb.DeadMessageSpec{}
+	err := protojson.Unmarshal([]byte(deadletter), &deadProto)
+	if err != nil {
+		log.WithError(ctx, err).Error("Couldn't unmarshal dead letter")
+		return nil, err
+	}
+
+	dl := dante_pb.DeadMessageState{
+		MessageId:   message_id,
+		Status:      dante_pb.MessageStatus_CREATED, // TODO: this should be in the db
+		CurrentSpec: &deadProto,
+	}
+	res.Message = &dl
+	// TODO: this will be another db fetch
+	res.Events = make([]*dante_pb.DeadMessageEvent, 0)
+
+	return &res, nil
+}
+
 func (ds *DeadletterService) ListDeadMessages(ctx context.Context, req *dante_spb.ListDeadMessagesRequest) (*dante_spb.ListDeadMessagesResponse, error) {
 	res := dante_spb.ListDeadMessagesResponse{}
 
@@ -128,7 +172,7 @@ func (ds *DeadletterService) ListDeadMessages(ctx context.Context, req *dante_sp
 
 	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
 		Isolation: sql.LevelReadCommitted,
-		ReadOnly:  false,
+		ReadOnly:  true,
 		Retryable: true,
 	}, func(ctx context.Context, tx sqrlx.Transaction) error {
 		rows, err := tx.Select(ctx, q)
