@@ -20,6 +20,8 @@ CREATE TABLE message_events (
     msg_event JSONB NOT NULL
 );
 
+CREATE INDEX message_id_idx ON message_events(message_id);
+
 -- +goose Down
 DROP TABLE message_events;
 DROP TABLE messages;
