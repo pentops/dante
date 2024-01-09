@@ -121,6 +121,11 @@ type DeadletterService struct {
 	dante_spb.UnimplementedDeadMessageCommandServiceServer
 }
 
+func (ds *DeadletterService) ListDeadMessageEvents(ctx context.Context, req *dante_spb.ListDeadMessageEventsRequest) (*dante_spb.ListDeadMessageEventsResponse, error) {
+
+	return nil, nil
+}
+
 func (ds *DeadletterService) GetDeadMessage(ctx context.Context, req *dante_spb.GetDeadMessageRequest) (*dante_spb.GetDeadMessageResponse, error) {
 	res := dante_spb.GetDeadMessageResponse{}
 
@@ -241,6 +246,8 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		if err != nil {
 			return err
 		}
+
+		// do we also add an entry to message events?
 
 		return nil
 	}); err != nil {
