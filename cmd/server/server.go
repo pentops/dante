@@ -144,19 +144,14 @@ func (ds *DeadletterService) GetDeadMessage(ctx context.Context, req *dante_spb.
 		return nil, status.Error(codes.NotFound, "Dead letter not found")
 	}
 
-	deadProto := dante_pb.DeadMessageSpec{}
+	deadProto := dante_pb.DeadMessageState{}
 	err := protojson.Unmarshal([]byte(deadletter), &deadProto)
 	if err != nil {
 		log.WithError(ctx, err).Error("Couldn't unmarshal dead letter")
 		return nil, err
 	}
 
-	dl := dante_pb.DeadMessageState{
-		MessageId:   message_id,
-		Status:      dante_pb.MessageStatus_CREATED, // TODO: this should be in the db
-		CurrentSpec: &deadProto,
-	}
-	res.Message = &dl
+	res.Message = &deadProto
 	// TODO: this will be another db fetch
 	res.Events = make([]*dante_pb.DeadMessageEvent, 0)
 
@@ -193,14 +188,13 @@ func (ds *DeadletterService) ListDeadMessages(ctx context.Context, req *dante_sp
 				return err
 			}
 
-			deadProto := dante_pb.DeadMessageSpec{}
+			deadProto := dante_pb.DeadMessageState{}
 			err = protojson.Unmarshal([]byte(deadJson), &deadProto)
 			if err != nil {
 				log.WithError(ctx, err).Error("Couldn't unmarshal dead letter")
 				return err
 			}
-			// we also need to set status of the dms:
-			res.Messages = append(res.Messages, &dante_pb.DeadMessageState{CurrentSpec: &deadProto, MessageId: msg_id})
+			res.Messages = append(res.Messages, &deadProto)
 		}
 
 		return nil
@@ -223,7 +217,13 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		Problem:        req.GetProblem(),
 	}
 
-	msg_json, err := protojson.Marshal(&s)
+	dms := dante_pb.DeadMessageState{
+		MessageId:   req.MessageId,
+		CurrentSpec: &s,
+		Status:      dante_pb.MessageStatus_CREATED,
+	}
+
+	msg_json, err := protojson.Marshal(&dms)
 	if err != nil {
 		log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
 		return nil, err
@@ -235,7 +235,7 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		Retryable: true,
 	}, func(ctx context.Context, tx sqrlx.Transaction) error {
 		_, err := tx.Insert(ctx, sq.Insert("messages").SetMap(map[string]interface{}{
-			"message_id": req.MessageId,
+			"message_id": dms.MessageId,
 			"deadletter": msg_json,
 		}).Suffix("ON CONFLICT(message_id) DO NOTHING"))
 		if err != nil {
