@@ -4,6 +4,7 @@ go 1.21.5
 
 require (
 	github.com/elgris/sqrl v0.0.0-20210727210741-7e0198b30236
+	github.com/google/uuid v1.4.0
 	github.com/lib/pq v1.10.9
 	github.com/pentops/log.go v0.0.0-20230815045424-6ebbd9ef2576
 	github.com/pentops/o5-go v0.0.0-20240108181354-69adf8151c27
@@ -18,7 +19,6 @@ require (
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.31.0-20231115204500-e097f827e652.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/google/uuid v1.4.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/pentops/protostate v0.0.0-20240105003357-a960043b46e7 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
