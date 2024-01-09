@@ -16,6 +16,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/pentops/log.go/grpc_log"
 	"github.com/pentops/log.go/log"
+	"github.com/pentops/o5-go/auth/v1/auth_pb"
 	"github.com/pentops/o5-go/dante/v1/dante_pb"
 	"github.com/pentops/o5-go/dante/v1/dante_spb"
 	"github.com/pentops/o5-go/dante/v1/dante_tpb"
@@ -33,6 +34,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"gopkg.daemonl.com/envconf"
 	"gopkg.daemonl.com/sqrlx"
 )
@@ -234,6 +236,28 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		return nil, err
 	}
 
+	event := dante_pb.DeadMessageEvent{
+		Metadata: &dante_pb.Metadata{
+			EventId:   uuid.NewString(),
+			Timestamp: timestamppb.Now(),
+			Actor:     &auth_pb.Actor{},
+		},
+		MessageId: dms.MessageId,
+		Event: &dante_pb.DeadMessageEventType{
+			Type: &dante_pb.DeadMessageEventType_Created_{
+				Created: &dante_pb.DeadMessageEventType_Created{
+					Spec: &s,
+				},
+			},
+		},
+	}
+
+	event_json, err := protojson.Marshal(&event)
+	if err != nil {
+		log.Infof(ctx, "couldn't turn dead letter event into json: %v", err.Error())
+		return nil, err
+	}
+
 	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
 		Isolation: sql.LevelReadCommitted,
 		ReadOnly:  false,
@@ -247,7 +271,14 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 			return err
 		}
 
-		// do we also add an entry to message events?
+		_, err = tx.Insert(ctx, sq.Insert("message_events").SetMap(map[string]interface{}{
+			"message_id": dms.MessageId,
+			"msg_event":  event_json,
+			"id":         event.Metadata.EventId,
+		}))
+		if err != nil {
+			return err
+		}
 
 		return nil
 	}); err != nil {
