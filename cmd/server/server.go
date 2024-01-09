@@ -129,7 +129,9 @@ func (ds *DeadletterService) ListDeadMessageEvents(ctx context.Context, req *dan
 }
 
 func (ds *DeadletterService) GetDeadMessage(ctx context.Context, req *dante_spb.GetDeadMessageRequest) (*dante_spb.GetDeadMessageResponse, error) {
-	res := dante_spb.GetDeadMessageResponse{}
+	res := dante_spb.GetDeadMessageResponse{
+		Events: make([]*dante_pb.DeadMessageEvent, 0),
+	}
 
 	var message_id string
 	var created_at, updated_at string
@@ -142,7 +144,41 @@ func (ds *DeadletterService) GetDeadMessage(ctx context.Context, req *dante_spb.
 	}, func(ctx context.Context, tx sqrlx.Transaction) error {
 		q := sq.Select("message_id, created_at, updated_at, deadletter").From("messages").Where("message_id = ?", *req.MessageId)
 		err := tx.QueryRow(ctx, q).Scan(&message_id, &created_at, &updated_at, &deadletter)
-		return err
+		if err != nil {
+			return err
+		}
+
+		// Limit instead of paging for now?
+		e := sq.Select("id, message_id, tstamp, msg_event").From("message_events").Where("message_id = ?", *req.MessageId)
+		rows, err := tx.Select(ctx, e)
+
+		if err != nil {
+			log.WithError(ctx, err).Error("Couldn't query database")
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			id := ""
+			msg_id := ""
+			tstamp := ""
+			event := ""
+
+			if err := rows.Scan(
+				&id, &msg_id, &tstamp, &event,
+			); err != nil {
+				return err
+			}
+
+			eproto := dante_pb.DeadMessageEvent{}
+			err := protojson.Unmarshal([]byte(event), &eproto)
+			if err != nil {
+				log.WithError(ctx, err).Error("Couldn't unmarshal dead letter event")
+				return err
+			}
+			res.Events = append(res.Events, &eproto)
+		}
+		return nil
 
 	}); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		log.WithError(ctx, err).Error("Couldn't get dead letter")
@@ -159,8 +195,6 @@ func (ds *DeadletterService) GetDeadMessage(ctx context.Context, req *dante_spb.
 	}
 
 	res.Message = &deadProto
-	// TODO: this will be another db fetch
-	res.Events = make([]*dante_pb.DeadMessageEvent, 0)
 
 	return &res, nil
 }
