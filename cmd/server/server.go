@@ -167,7 +167,7 @@ func (ds *DeadletterService) ListDeadMessages(ctx context.Context, req *dante_sp
 	res := dante_spb.ListDeadMessagesResponse{}
 
 	q := sq.Select(
-		"deadletter",
+		"message_id, deadletter",
 	).From("messages").Limit(10) // pagination to be done later
 
 	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
@@ -185,9 +185,10 @@ func (ds *DeadletterService) ListDeadMessages(ctx context.Context, req *dante_sp
 
 		for rows.Next() {
 			deadJson := ""
+			msg_id := ""
 
 			if err := rows.Scan(
-				&deadJson,
+				&msg_id, &deadJson,
 			); err != nil {
 				return err
 			}
@@ -198,7 +199,8 @@ func (ds *DeadletterService) ListDeadMessages(ctx context.Context, req *dante_sp
 				log.WithError(ctx, err).Error("Couldn't unmarshal dead letter")
 				return err
 			}
-			res.Messages = append(res.Messages, &dante_pb.DeadMessageState{CurrentSpec: &deadProto})
+			// we also need to set status of the dms:
+			res.Messages = append(res.Messages, &dante_pb.DeadMessageState{CurrentSpec: &deadProto, MessageId: msg_id})
 		}
 
 		return nil
