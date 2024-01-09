@@ -16,6 +16,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/pentops/log.go/grpc_log"
 	"github.com/pentops/log.go/log"
+	"github.com/pentops/o5-go/auth/v1/auth_pb"
 	"github.com/pentops/o5-go/dante/v1/dante_pb"
 	"github.com/pentops/o5-go/dante/v1/dante_spb"
 	"github.com/pentops/o5-go/dante/v1/dante_tpb"
@@ -33,6 +34,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"gopkg.daemonl.com/envconf"
 	"gopkg.daemonl.com/sqrlx"
 )
@@ -121,8 +123,60 @@ type DeadletterService struct {
 	dante_spb.UnimplementedDeadMessageCommandServiceServer
 }
 
+func (ds *DeadletterService) ListDeadMessageEvents(ctx context.Context, req *dante_spb.ListDeadMessageEventsRequest) (*dante_spb.ListDeadMessageEventsResponse, error) {
+	res := dante_spb.ListDeadMessageEventsResponse{}
+
+	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+		ReadOnly:  true,
+		Retryable: true,
+	}, func(ctx context.Context, tx sqrlx.Transaction) error {
+		// Limit instead of paging for now
+		e := sq.Select("id, message_id, tstamp, msg_event").From("message_events").Where("message_id = ?", req.MessageId).OrderBy("tstamp DESC").Limit(100)
+		rows, err := tx.Select(ctx, e)
+
+		if err != nil {
+			log.WithError(ctx, err).Error("Couldn't query database")
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			id := ""
+			msg_id := ""
+			tstamp := ""
+			event := ""
+
+			if err := rows.Scan(
+				&id, &msg_id, &tstamp, &event,
+			); err != nil {
+				return err
+			}
+
+			eproto := dante_pb.DeadMessageEvent{}
+			err := protojson.Unmarshal([]byte(event), &eproto)
+			if err != nil {
+				log.WithError(ctx, err).Error("Couldn't unmarshal dead letter event")
+				return err
+			}
+			res.Events = append(res.Events, &eproto)
+		}
+		return nil
+
+	}); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		log.WithError(ctx, err).Error("Couldn't get dead letter events")
+		return nil, err
+	} else if err != nil && errors.Is(err, sql.ErrNoRows) {
+		return nil, status.Error(codes.NotFound, "Dead letter events not found")
+	}
+
+	return &res, nil
+}
+
 func (ds *DeadletterService) GetDeadMessage(ctx context.Context, req *dante_spb.GetDeadMessageRequest) (*dante_spb.GetDeadMessageResponse, error) {
-	res := dante_spb.GetDeadMessageResponse{}
+	res := dante_spb.GetDeadMessageResponse{
+		Events: make([]*dante_pb.DeadMessageEvent, 0),
+	}
 
 	var message_id string
 	var created_at, updated_at string
@@ -135,7 +189,41 @@ func (ds *DeadletterService) GetDeadMessage(ctx context.Context, req *dante_spb.
 	}, func(ctx context.Context, tx sqrlx.Transaction) error {
 		q := sq.Select("message_id, created_at, updated_at, deadletter").From("messages").Where("message_id = ?", *req.MessageId)
 		err := tx.QueryRow(ctx, q).Scan(&message_id, &created_at, &updated_at, &deadletter)
-		return err
+		if err != nil {
+			return err
+		}
+
+		// Limit instead of paging for now
+		e := sq.Select("id, message_id, tstamp, msg_event").From("message_events").Where("message_id = ?", *req.MessageId).OrderBy("tstamp DESC").Limit(100)
+		rows, err := tx.Select(ctx, e)
+
+		if err != nil {
+			log.WithError(ctx, err).Error("Couldn't query database")
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			id := ""
+			msg_id := ""
+			tstamp := ""
+			event := ""
+
+			if err := rows.Scan(
+				&id, &msg_id, &tstamp, &event,
+			); err != nil {
+				return err
+			}
+
+			eproto := dante_pb.DeadMessageEvent{}
+			err := protojson.Unmarshal([]byte(event), &eproto)
+			if err != nil {
+				log.WithError(ctx, err).Error("Couldn't unmarshal dead letter event")
+				return err
+			}
+			res.Events = append(res.Events, &eproto)
+		}
+		return nil
 
 	}); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		log.WithError(ctx, err).Error("Couldn't get dead letter")
@@ -152,8 +240,6 @@ func (ds *DeadletterService) GetDeadMessage(ctx context.Context, req *dante_spb.
 	}
 
 	res.Message = &deadProto
-	// TODO: this will be another db fetch
-	res.Events = make([]*dante_pb.DeadMessageEvent, 0)
 
 	return &res, nil
 }
@@ -229,6 +315,28 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		return nil, err
 	}
 
+	event := dante_pb.DeadMessageEvent{
+		Metadata: &dante_pb.Metadata{
+			EventId:   uuid.NewString(),
+			Timestamp: timestamppb.Now(),
+			Actor:     &auth_pb.Actor{},
+		},
+		MessageId: dms.MessageId,
+		Event: &dante_pb.DeadMessageEventType{
+			Type: &dante_pb.DeadMessageEventType_Created_{
+				Created: &dante_pb.DeadMessageEventType_Created{
+					Spec: &s,
+				},
+			},
+		},
+	}
+
+	event_json, err := protojson.Marshal(&event)
+	if err != nil {
+		log.Infof(ctx, "couldn't turn dead letter event into json: %v", err.Error())
+		return nil, err
+	}
+
 	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
 		Isolation: sql.LevelReadCommitted,
 		ReadOnly:  false,
@@ -238,6 +346,15 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 			"message_id": dms.MessageId,
 			"deadletter": msg_json,
 		}).Suffix("ON CONFLICT(message_id) DO NOTHING"))
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.Insert(ctx, sq.Insert("message_events").SetMap(map[string]interface{}{
+			"message_id": dms.MessageId,
+			"msg_event":  event_json,
+			"id":         event.Metadata.EventId,
+		}))
 		if err != nil {
 			return err
 		}
