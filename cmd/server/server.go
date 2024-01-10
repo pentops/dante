@@ -123,6 +123,169 @@ type DeadletterService struct {
 	dante_spb.UnimplementedDeadMessageCommandServiceServer
 }
 
+func (ds *DeadletterService) UpdateDeadMessage(ctx context.Context, req *dante_spb.UpdateDeadMessageRequest) (*dante_spb.UpdateDeadMessageResponse, error) {
+	res := dante_spb.UpdateDeadMessageResponse{}
+
+	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+		ReadOnly:  false,
+		Retryable: true,
+	}, func(ctx context.Context, tx sqrlx.Transaction) error {
+		var deadletter, message_id string
+		q := sq.Select("message_id, deadletter").From("messages").Where("message_id = ?", req.MessageId)
+		err := tx.QueryRow(ctx, q).Scan(&message_id, &deadletter)
+		if err != nil {
+			return err
+		}
+
+		deadProto := dante_pb.DeadMessageState{}
+		err = protojson.Unmarshal([]byte(deadletter), &deadProto)
+		if err != nil {
+			log.WithError(ctx, err).Error("Couldn't unmarshal dead letter")
+			return err
+		}
+		deadProto.Status = dante_pb.MessageStatus_MESSAGE_STATUS_UPDATED
+		deadProto.CurrentSpec = req.Message
+
+		msg_json, err := protojson.Marshal(&deadProto)
+		if err != nil {
+			log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
+			return err
+		}
+
+		u := sq.Update("messages").SetMap(map[string]interface{}{
+			"deadletter": msg_json,
+		}).Where("message_id = ?", req.MessageId)
+
+		_, err = tx.Update(ctx, u)
+		if err != nil {
+			log.WithError(ctx, err).Error("Couldn't update dead letter")
+			return err
+		}
+
+		event := dante_pb.DeadMessageEvent{
+			Metadata: &dante_pb.Metadata{
+				EventId:   uuid.NewString(),
+				Timestamp: timestamppb.Now(),
+				Actor:     &auth_pb.Actor{},
+			},
+			MessageId: req.MessageId,
+			Event: &dante_pb.DeadMessageEventType{
+				Type: &dante_pb.DeadMessageEventType_Updated_{
+					Updated: &dante_pb.DeadMessageEventType_Updated{
+						Spec: req.Message,
+					},
+				},
+			},
+		}
+
+		event_json, err := protojson.Marshal(&event)
+		if err != nil {
+			log.Infof(ctx, "couldn't turn dead letter event into json: %v", err.Error())
+			return err
+		}
+
+		_, err = tx.Insert(ctx, sq.Insert("message_events").SetMap(map[string]interface{}{
+			"message_id": req.MessageId,
+			"msg_event":  event_json,
+			"id":         event.Metadata.EventId,
+		}))
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		log.WithError(ctx, err).Error("Couldn't save dead letter change to database")
+		return nil, err
+	}
+
+	return &res, nil
+}
+
+func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_spb.ReplayDeadMessageRequest) (*dante_spb.ReplayDeadMessageResponse, error) {
+	return nil, nil
+}
+
+func (ds *DeadletterService) RejectDeadMessage(ctx context.Context, req *dante_spb.RejectDeadMessageRequest) (*dante_spb.RejectDeadMessageResponse, error) {
+	res := dante_spb.RejectDeadMessageResponse{}
+
+	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+		ReadOnly:  false,
+		Retryable: true,
+	}, func(ctx context.Context, tx sqrlx.Transaction) error {
+		var deadletter, message_id string
+		q := sq.Select("message_id, deadletter").From("messages").Where("message_id = ?", req.MessageId)
+		err := tx.QueryRow(ctx, q).Scan(&message_id, &deadletter)
+		if err != nil {
+			return err
+		}
+
+		deadProto := dante_pb.DeadMessageState{}
+		err = protojson.Unmarshal([]byte(deadletter), &deadProto)
+		if err != nil {
+			log.WithError(ctx, err).Error("Couldn't unmarshal dead letter")
+			return err
+		}
+		deadProto.Status = dante_pb.MessageStatus_MESSAGE_STATUS_REJECTED
+
+		msg_json, err := protojson.Marshal(&deadProto)
+		if err != nil {
+			log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
+			return err
+		}
+
+		u := sq.Update("messages").SetMap(map[string]interface{}{
+			"deadletter": msg_json,
+		}).Where("message_id = ?", req.MessageId)
+
+		_, err = tx.Update(ctx, u)
+		if err != nil {
+			log.WithError(ctx, err).Error("Couldn't update dead letter")
+			return err
+		}
+
+		event := dante_pb.DeadMessageEvent{
+			Metadata: &dante_pb.Metadata{
+				EventId:   uuid.NewString(),
+				Timestamp: timestamppb.Now(),
+				Actor:     &auth_pb.Actor{},
+			},
+			MessageId: req.MessageId,
+			Event: &dante_pb.DeadMessageEventType{
+				Type: &dante_pb.DeadMessageEventType_Rejected_{
+					Rejected: &dante_pb.DeadMessageEventType_Rejected{
+						Reason: req.Reason,
+					},
+				},
+			},
+		}
+
+		event_json, err := protojson.Marshal(&event)
+		if err != nil {
+			log.Infof(ctx, "couldn't turn dead letter event into json: %v", err.Error())
+			return err
+		}
+
+		_, err = tx.Insert(ctx, sq.Insert("message_events").SetMap(map[string]interface{}{
+			"message_id": req.MessageId,
+			"msg_event":  event_json,
+			"id":         event.Metadata.EventId,
+		}))
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		log.WithError(ctx, err).Error("Couldn't save dead letter change to database")
+		return nil, err
+	}
+
+	return &res, nil
+}
+
 func (ds *DeadletterService) ListDeadMessageEvents(ctx context.Context, req *dante_spb.ListDeadMessageEventsRequest) (*dante_spb.ListDeadMessageEventsResponse, error) {
 	res := dante_spb.ListDeadMessageEventsResponse{}
 
