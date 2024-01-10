@@ -160,7 +160,7 @@ func (ds *DeadletterService) RejectDeadMessage(ctx context.Context, req *dante_s
 			return err
 		}
 
-		u := sq.Update("deadletter").SetMap(map[string]interface{}{
+		u := sq.Update("messages").SetMap(map[string]interface{}{
 			"deadletter": msg_json,
 		}).Where("message_id = ?", req.MessageId)
 
