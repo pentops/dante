@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -116,7 +117,8 @@ func openDatabase(ctx context.Context) (*sql.DB, error) {
 }
 
 type DeadletterService struct {
-	db *sqrlx.Wrapper
+	db       *sqrlx.Wrapper
+	slackUrl string
 
 	dante_tpb.UnimplementedDeadMessageTopicServer
 	dante_spb.UnimplementedDeadMessageQueryServiceServer
@@ -528,17 +530,31 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		return nil, err
 	}
 
+	if len(ds.slackUrl) > 0 {
+		wrapper := `{"text":"Deadletter on:
+		%v
+		Error:
+		%v"}`
+
+		msg := fmt.Sprintf(wrapper, req.QueueName, req.Problem.String())
+		_, err := http.Post(ds.slackUrl, "application/json", bytes.NewReader([]byte(msg)))
+		if err != nil {
+			log.WithError(ctx, err).Error("Couldn't send deadletter notice to slack")
+		}
+	}
+
 	return &emptypb.Empty{}, nil
 }
 
-func NewDeadletterServiceService(conn sqrlx.Connection) (*DeadletterService, error) {
+func NewDeadletterServiceService(conn sqrlx.Connection, slackUrl string) (*DeadletterService, error) {
 	db, err := sqrlx.New(conn, sq.Dollar)
 	if err != nil {
 		return nil, err
 	}
 
 	return &DeadletterService{
-		db: db,
+		db:       db,
+		slackUrl: slackUrl,
 	}, nil
 }
 
@@ -642,6 +658,7 @@ func runServe(ctx context.Context) error {
 	type envConfig struct {
 		PublicPort  int    `env:"PUBLIC_PORT" default:"8080"`
 		ProtobufSrc string `env:"PROTOBUF_SRC" default:""`
+		SlackUrl    string `env:"SLACK_URL" default:""`
 	}
 	cfg := envConfig{}
 	if err := envconf.Parse(&cfg); err != nil {
@@ -663,7 +680,7 @@ func runServe(ctx context.Context) error {
 		return err
 	}
 
-	deadletterService, err := NewDeadletterServiceService(db)
+	deadletterService, err := NewDeadletterServiceService(db, cfg.SlackUrl)
 	if err != nil {
 		return err
 	}
