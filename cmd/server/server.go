@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -457,6 +458,10 @@ func (ds *DeadletterService) ListDeadMessages(ctx context.Context, req *dante_sp
 	return &res, nil
 }
 
+type SlackMessage struct {
+	Text string `json:"text"`
+}
+
 func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessage) (*emptypb.Empty, error) {
 	s := dante_pb.DeadMessageSpec{
 		VersionId:      uuid.NewString(),
@@ -531,24 +536,23 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 	}
 
 	if len(ds.slackUrl) > 0 {
-		wrapper := `{'text':'Deadletter on:
-		%v
-		Error:
-		%v'}`
+		msg := SlackMessage{}
+		wrapper := `Deadletter on:
+%v
+Error:
+%v}`
 
-		// Do some encoding/escaping of quotes for queuename and problem
-		msg := fmt.Sprintf(wrapper, req.QueueName, req.Problem.String())
-		log.Infof(ctx, "msg is %v", msg)
-		res, err := http.Post(ds.slackUrl, "application/json", bytes.NewReader([]byte(msg)))
+		msg.Text = fmt.Sprintf(wrapper, req.QueueName, req.Problem.String())
+		json, err := json.Marshal(msg)
+		if err != nil {
+			log.WithError(ctx, err).Error("Couldn't convert dead letter to slack message")
+			msg.Text = "(Dante error converting to slack message)"
+		}
+		res, err := http.Post(ds.slackUrl, "application/json", bytes.NewReader([]byte(json)))
 		if err != nil {
 			log.WithError(ctx, err).Error("Couldn't send deadletter notice to slack")
 		}
 		defer res.Body.Close()
-		bodyBytes, err := io.ReadAll(res.Body)
-		if err != nil {
-			log.WithError(ctx, err).Error("Couldn't send deadletter notice to slack, response issue")
-		}
-		log.Infof(ctx, "response body is %v", string(bodyBytes))
 	}
 
 	return &emptypb.Empty{}, nil
@@ -692,8 +696,6 @@ func runServe(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// very temporary
-	log.Infof(ctx, "slackurl length is %v and first few chars are %v", len(deadletterService.slackUrl), deadletterService.slackUrl[0:35])
 
 	log.WithField(ctx, "PORT", cfg.PublicPort).Info("Boot")
 
