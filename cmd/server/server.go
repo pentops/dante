@@ -531,16 +531,24 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 	}
 
 	if len(ds.slackUrl) > 0 {
-		wrapper := `{"text":"Deadletter on:
+		wrapper := `{'text':'Deadletter on:
 		%v
 		Error:
-		%v"}`
+		%v'}`
 
+		// Do some encoding/escaping of quotes for queuename and problem
 		msg := fmt.Sprintf(wrapper, req.QueueName, req.Problem.String())
-		_, err := http.Post(ds.slackUrl, "application/json", bytes.NewReader([]byte(msg)))
+		log.Infof(ctx, "msg is %v", msg)
+		res, err := http.Post(ds.slackUrl, "application/json", bytes.NewReader([]byte(msg)))
 		if err != nil {
 			log.WithError(ctx, err).Error("Couldn't send deadletter notice to slack")
 		}
+		defer res.Body.Close()
+		bodyBytes, err := io.ReadAll(res.Body)
+		if err != nil {
+			log.WithError(ctx, err).Error("Couldn't send deadletter notice to slack, response issue")
+		}
+		log.Infof(ctx, "response body is %v", string(bodyBytes))
 	}
 
 	return &emptypb.Empty{}, nil
