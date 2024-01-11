@@ -3,6 +3,7 @@ name: "dante"
 
 secrets:
   - name: protobufsrc
+  - name: slack
 
 databases:
   - name: main
@@ -52,3 +53,7 @@ runtimes:
             secret:
               secretName: protobufsrc
               jsonKey: protobufuri
+          - name: SLACK_URL
+            secret:
+              secretName: slack
+              jsonKey: url
