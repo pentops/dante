@@ -554,7 +554,7 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 	return &emptypb.Empty{}, nil
 }
 
-func NewDeadletterServiceService(conn sqrlx.Connection, slackUrl string) (*DeadletterService, error) {
+func NewDeadletterServiceService(conn sqrlx.Connection, slack string) (*DeadletterService, error) {
 	db, err := sqrlx.New(conn, sq.Dollar)
 	if err != nil {
 		return nil, err
@@ -562,7 +562,7 @@ func NewDeadletterServiceService(conn sqrlx.Connection, slackUrl string) (*Deadl
 
 	return &DeadletterService{
 		db:       db,
-		slackUrl: slackUrl,
+		slackUrl: slack,
 	}, nil
 }
 
@@ -692,6 +692,8 @@ func runServe(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// very temporary
+	log.Infof(ctx, "slackurl length is %v and first few chars are %v", len(deadletterService.slackUrl), deadletterService.slackUrl[0:35])
 
 	log.WithField(ctx, "PORT", cfg.PublicPort).Info("Boot")
 
