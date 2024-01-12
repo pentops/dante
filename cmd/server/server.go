@@ -207,6 +207,9 @@ func (ds *DeadletterService) UpdateDeadMessage(ctx context.Context, req *dante_s
 }
 
 func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_spb.ReplayDeadMessageRequest) (*dante_spb.ReplayDeadMessageResponse, error) {
+	// dump message into outbox
+
+	// update message state to replayed
 	return nil, nil
 }
 
@@ -482,6 +485,9 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 	msg_json, err := protojson.Marshal(&dms)
 	if err != nil {
 		log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
+		// can we save the message anyways? As a string or raw format of some variety?
+		// raw := base64.StdEncoding.EncodeToString(req.Payload.Proto.GetValue())
+		// save raw to db?
 		return nil, err
 	}
 
@@ -592,10 +598,13 @@ func loadProtoFromFile(ctx context.Context, fileName string) error {
 	fp.RangeFiles(func(a protoreflect.FileDescriptor) bool {
 		q, _ := protoregistry.GlobalFiles.FindFileByPath(a.Path())
 		if q == nil {
+			log.Infof(ctx, "registering %v", a.Path())
 			err := protoregistry.GlobalFiles.RegisterFile(a)
 			if err != nil {
-				log.Infof(ctx, "Couldn't load %v into protoregistry: %v", a, err.Error())
+				log.Infof(ctx, "Couldn't load %v into protoregistry: %v", a.Path(), err.Error())
 			}
+		} else {
+			log.Infof(ctx, "%v was already registered, skipping\n", a.Path())
 		}
 		return true
 	})
