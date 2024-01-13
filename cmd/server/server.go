@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"os"
@@ -16,6 +15,7 @@ import (
 	sq "github.com/elgris/sqrl"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
+	"github.com/pentops/dante/dynamictype"
 	"github.com/pentops/log.go/grpc_log"
 	"github.com/pentops/log.go/log"
 	"github.com/pentops/o5-go/auth/v1/auth_pb"
@@ -31,10 +31,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protodesc"
-	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/reflect/protoregistry"
-	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gopkg.daemonl.com/envconf"
@@ -117,9 +113,15 @@ func openDatabase(ctx context.Context) (*sql.DB, error) {
 	return db, nil
 }
 
+type ProtoJSON interface {
+	Marshal(v proto.Message) ([]byte, error)
+	Unmarshal(data []byte, v proto.Message) error
+}
+
 type DeadletterService struct {
-	db       *sqrlx.Wrapper
-	slackUrl string
+	db        *sqrlx.Wrapper
+	protojson ProtoJSON
+	slackUrl  string
 
 	dante_tpb.UnimplementedDeadMessageTopicServer
 	dante_spb.UnimplementedDeadMessageQueryServiceServer
@@ -142,7 +144,7 @@ func (ds *DeadletterService) UpdateDeadMessage(ctx context.Context, req *dante_s
 		}
 
 		deadProto := dante_pb.DeadMessageState{}
-		err = protojson.Unmarshal([]byte(deadletter), &deadProto)
+		err = ds.protojson.Unmarshal([]byte(deadletter), &deadProto)
 		if err != nil {
 			log.WithError(ctx, err).Error("Couldn't unmarshal dead letter")
 			return err
@@ -150,7 +152,7 @@ func (ds *DeadletterService) UpdateDeadMessage(ctx context.Context, req *dante_s
 		deadProto.Status = dante_pb.MessageStatus_MESSAGE_STATUS_UPDATED
 		deadProto.CurrentSpec = req.Message
 
-		msg_json, err := protojson.Marshal(&deadProto)
+		msg_json, err := ds.protojson.Marshal(&deadProto)
 		if err != nil {
 			log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
 			return err
@@ -182,7 +184,7 @@ func (ds *DeadletterService) UpdateDeadMessage(ctx context.Context, req *dante_s
 			},
 		}
 
-		event_json, err := protojson.Marshal(&event)
+		event_json, err := ds.protojson.Marshal(&event)
 		if err != nil {
 			log.Infof(ctx, "couldn't turn dead letter event into json: %v", err.Error())
 			return err
@@ -479,7 +481,7 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		Status:      dante_pb.MessageStatus_CREATED,
 	}
 
-	msg_json, err := protojson.Marshal(&dms)
+	msg_json, err := ds.protojson.Marshal(&dms)
 	if err != nil {
 		log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
 		return nil, err
@@ -501,7 +503,7 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		},
 	}
 
-	event_json, err := protojson.Marshal(&event)
+	event_json, err := ds.protojson.Marshal(&event)
 	if err != nil {
 		log.Infof(ctx, "couldn't turn dead letter event into json: %v", err.Error())
 		return nil, err
@@ -558,112 +560,17 @@ Error:
 	return &emptypb.Empty{}, nil
 }
 
-func NewDeadletterServiceService(conn sqrlx.Connection, slack string) (*DeadletterService, error) {
+func NewDeadletterServiceService(conn sqrlx.Connection, resolver dynamictype.Resolver, slack string) (*DeadletterService, error) {
 	db, err := sqrlx.New(conn, sq.Dollar)
 	if err != nil {
 		return nil, err
 	}
 
 	return &DeadletterService{
-		db:       db,
-		slackUrl: slack,
+		db:        db,
+		protojson: dynamictype.NewProtoJSON(resolver),
+		slackUrl:  slack,
 	}, nil
-}
-
-func loadProtoFromFile(ctx context.Context, fileName string) error {
-	protoFile, err := os.ReadFile(fileName)
-	if err != nil {
-		log.Infof(ctx, "Couldn't read file: %v", err.Error())
-		return err
-	}
-
-	fds := &descriptorpb.FileDescriptorSet{}
-	err = proto.Unmarshal(protoFile, fds)
-	if err != nil {
-		log.Infof(ctx, "Couldn't unmarshal file protofile: %v", err.Error())
-		return err
-	}
-	fp, err := protodesc.NewFiles(fds)
-	if err != nil {
-		log.Infof(ctx, "Couldn't convert to registry file: %v", err.Error())
-		return err
-	}
-
-	fp.RangeFiles(func(a protoreflect.FileDescriptor) bool {
-		q, _ := protoregistry.GlobalFiles.FindFileByPath(a.Path())
-		if q == nil {
-			err := protoregistry.GlobalFiles.RegisterFile(a)
-			if err != nil {
-				log.Infof(ctx, "Couldn't load %v into protoregistry: %v", a, err.Error())
-			}
-		}
-		return true
-	})
-	return nil
-}
-
-func loadLocalExternalProtobufs(ctx context.Context, fileName string) error {
-	before := protoregistry.GlobalFiles.NumFiles()
-
-	err := loadProtoFromFile(ctx, fileName)
-	if err != nil {
-		log.Infof(ctx, "Couldn't load file from local source: %v", err.Error())
-	}
-
-	loaded := protoregistry.GlobalFiles.NumFiles() - before
-	if loaded > 0 {
-		log.Infof(ctx, "Loaded %v external local proto defs", loaded)
-	} else {
-		log.Info(ctx, "Attempted to load external local proto defs but none were registered")
-	}
-	return nil
-}
-
-func loadExternalProtobufs(ctx context.Context, src string) error {
-	if len(src) == 0 {
-		return nil
-	}
-
-	res, err := http.Get(src)
-	if err != nil {
-		log.Infof(ctx, "Couldn't get file from %v: %v", src, err.Error())
-		return err
-	}
-	body, err := io.ReadAll(res.Body)
-	res.Body.Close()
-	if res.StatusCode > 299 {
-		log.Infof(ctx, "got status code %v instead of 2xx", res.StatusCode)
-		return err
-	}
-	file := "./tmpprotos"
-
-	fd, err := os.Create(file)
-	if err != nil {
-		log.Infof(ctx, "Couldn't create file to download to: %v", err.Error())
-		return err
-	}
-	_, err = fd.Write(body)
-	if err != nil {
-		fd.Close()
-		log.Infof(ctx, "Couldn't write file: %v", err.Error())
-		return err
-	}
-	fd.Close()
-
-	before := protoregistry.GlobalFiles.NumFiles()
-	err = loadProtoFromFile(ctx, file)
-	if err != nil {
-		log.Infof(ctx, "Couldn't load file from http source: %v", err.Error())
-	}
-
-	loaded := protoregistry.GlobalFiles.NumFiles() - before
-	if loaded > 0 {
-		log.Infof(ctx, "Loaded %v external proto defs via http", loaded)
-	} else {
-		log.Info(ctx, "Attempted to load external proto defs but none were registered")
-	}
-
-	return nil
 }
 
 func runServe(ctx context.Context) error {
@@ -677,12 +584,13 @@ func runServe(ctx context.Context) error {
 		return err
 	}
 
-	err := loadExternalProtobufs(ctx, cfg.ProtobufSrc)
+	types := dynamictype.NewTypeRegistry()
+	err := types.LoadExternalProtobufs(cfg.ProtobufSrc)
 	if err != nil {
 		return err
 	}
 
-	err = loadLocalExternalProtobufs(ctx, "./pentops-o5.binpb")
+	err = types.LoadProtoFromFile("./pentops-o5.binpb")
 	if err != nil {
 		return err
 	}
@@ -692,7 +600,7 @@ func runServe(ctx context.Context) error {
 		return err
 	}
 
-	deadletterService, err := NewDeadletterServiceService(db, cfg.SlackUrl)
+	deadletterService, err := NewDeadletterServiceService(db, types, cfg.SlackUrl)
 	if err != nil {
 		return err
 	}
