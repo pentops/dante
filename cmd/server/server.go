@@ -29,7 +29,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -228,14 +227,14 @@ func (ds *DeadletterService) RejectDeadMessage(ctx context.Context, req *dante_s
 		}
 
 		deadProto := dante_pb.DeadMessageState{}
-		err = protojson.Unmarshal([]byte(deadletter), &deadProto)
+		err = ds.protojson.Unmarshal([]byte(deadletter), &deadProto)
 		if err != nil {
 			log.WithError(ctx, err).Error("Couldn't unmarshal dead letter")
 			return err
 		}
 		deadProto.Status = dante_pb.MessageStatus_MESSAGE_STATUS_REJECTED
 
-		msg_json, err := protojson.Marshal(&deadProto)
+		msg_json, err := ds.protojson.Marshal(&deadProto)
 		if err != nil {
 			log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
 			return err
@@ -267,7 +266,7 @@ func (ds *DeadletterService) RejectDeadMessage(ctx context.Context, req *dante_s
 			},
 		}
 
-		event_json, err := protojson.Marshal(&event)
+		event_json, err := ds.protojson.Marshal(&event)
 		if err != nil {
 			log.Infof(ctx, "couldn't turn dead letter event into json: %v", err.Error())
 			return err
@@ -322,7 +321,7 @@ func (ds *DeadletterService) ListDeadMessageEvents(ctx context.Context, req *dan
 			}
 
 			eproto := dante_pb.DeadMessageEvent{}
-			err := protojson.Unmarshal([]byte(event), &eproto)
+			err := ds.protojson.Unmarshal([]byte(event), &eproto)
 			if err != nil {
 				log.WithError(ctx, err).Error("Couldn't unmarshal dead letter event")
 				return err
@@ -384,7 +383,7 @@ func (ds *DeadletterService) GetDeadMessage(ctx context.Context, req *dante_spb.
 			}
 
 			eproto := dante_pb.DeadMessageEvent{}
-			err := protojson.Unmarshal([]byte(event), &eproto)
+			err := ds.protojson.Unmarshal([]byte(event), &eproto)
 			if err != nil {
 				log.WithError(ctx, err).Error("Couldn't unmarshal dead letter event")
 				return err
@@ -401,7 +400,7 @@ func (ds *DeadletterService) GetDeadMessage(ctx context.Context, req *dante_spb.
 	}
 
 	deadProto := dante_pb.DeadMessageState{}
-	err := protojson.Unmarshal([]byte(deadletter), &deadProto)
+	err := ds.protojson.Unmarshal([]byte(deadletter), &deadProto)
 	if err != nil {
 		log.WithError(ctx, err).Error("Couldn't unmarshal dead letter")
 		return nil, err
@@ -443,7 +442,7 @@ func (ds *DeadletterService) ListDeadMessages(ctx context.Context, req *dante_sp
 			}
 
 			deadProto := dante_pb.DeadMessageState{}
-			err = protojson.Unmarshal([]byte(deadJson), &deadProto)
+			err = ds.protojson.Unmarshal([]byte(deadJson), &deadProto)
 			if err != nil {
 				log.WithError(ctx, err).Error("Couldn't unmarshal dead letter")
 				return err
