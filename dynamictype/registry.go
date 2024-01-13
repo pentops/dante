@@ -77,11 +77,11 @@ func (r *TypeRegistry) FindMessageByURL(url string) (protoreflect.MessageType, e
 	return r.FindMessageByName(message)
 }
 
-func (r *TypeRegistry) addMessage(msg protoreflect.MessageDescriptor) {
+func (r *TypeRegistry) AddMessage(msg protoreflect.MessageDescriptor) {
 	r.messages[string(msg.FullName())] = msg
 	subMessages := msg.Messages()
 	for idx := 0; idx < subMessages.Len(); idx++ {
-		r.addMessage(subMessages.Get(idx))
+		r.AddMessage(subMessages.Get(idx))
 	}
 }
 
@@ -95,7 +95,7 @@ func (r *TypeRegistry) AddFileDescriptor(fds *descriptorpb.FileDescriptorSet) er
 		fileMessages := a.Messages()
 		for idx := 0; idx < fileMessages.Len(); idx++ {
 			msg := fileMessages.Get(idx)
-			r.addMessage(msg)
+			r.AddMessage(msg)
 		}
 
 		return true
