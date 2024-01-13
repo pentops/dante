@@ -128,7 +128,12 @@ func (r *TypeRegistry) LoadExternalProtobufs(src string) error {
 		return fmt.Errorf("couldn't get file from %v: %v", src, err.Error())
 	}
 	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		res.Body.Close()
+		return fmt.Errorf("couldn't read body: %v", err.Error())
+	}
 	res.Body.Close()
+
 	if res.StatusCode > 299 {
 		return fmt.Errorf("got status code %v instead of 2xx", res.StatusCode)
 	}
