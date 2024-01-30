@@ -416,7 +416,7 @@ func (ds *DeadletterService) ListDeadMessages(ctx context.Context, req *dante_sp
 
 	q := sq.Select(
 		"message_id, deadletter",
-	).From("messages").Limit(10) // pagination to be done later
+	).From("messages").Limit(100) // pagination to be done later
 
 	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
 		Isolation: sql.LevelReadCommitted,
@@ -480,10 +480,19 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		Status:      dante_pb.MessageStatus_CREATED,
 	}
 
+	raw := []byte{}
 	msg_json, err := ds.protojson.Marshal(&dms)
 	if err != nil {
 		log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
-		return nil, err
+		// Anything that has an "any" field is suspect
+		dms.CurrentSpec.Payload = nil
+		msg_json, err = ds.protojson.Marshal(&dms)
+		if err != nil {
+			log.Infof(ctx, "couldn't turn dead letter into json after removing payload: %v", err.Error())
+			return nil, err
+		}
+
+		raw = req.Payload.Proto.Value
 	}
 
 	event := dante_pb.DeadMessageEvent{
@@ -513,10 +522,21 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		ReadOnly:  false,
 		Retryable: true,
 	}, func(ctx context.Context, tx sqrlx.Transaction) error {
-		_, err := tx.Insert(ctx, sq.Insert("messages").SetMap(map[string]interface{}{
+
+		q := sq.Insert("messages").SetMap(map[string]interface{}{
 			"message_id": dms.MessageId,
 			"deadletter": msg_json,
-		}).Suffix("ON CONFLICT(message_id) DO NOTHING"))
+		}).Suffix("ON CONFLICT(message_id) DO NOTHING")
+
+		if len(raw) > 0 {
+			q = sq.Insert("messages").SetMap(map[string]interface{}{
+				"message_id": dms.MessageId,
+				"deadletter": msg_json,
+				"messages":   raw,
+			}).Suffix("ON CONFLICT(message_id) DO NOTHING")
+		}
+
+		_, err := tx.Insert(ctx, q)
 		if err != nil {
 			return err
 		}
