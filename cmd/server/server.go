@@ -416,7 +416,7 @@ func (ds *DeadletterService) ListDeadMessages(ctx context.Context, req *dante_sp
 
 	q := sq.Select(
 		"message_id, deadletter",
-	).From("messages").Limit(100) // pagination to be done later
+	).From("messages").OrderBy("created_at DESC").Limit(100) // pagination to be done later
 
 	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
 		Isolation: sql.LevelReadCommitted,
