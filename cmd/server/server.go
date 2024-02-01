@@ -558,9 +558,9 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 
 	if len(ds.slackUrl) > 0 {
 		msg := SlackMessage{}
-		wrapper := `Deadletter on:
+		wrapper := `*Deadletter on*:
 %v
-Error:
+*Error*:
 %v}`
 
 		msg.Text = fmt.Sprintf(wrapper, req.QueueName, req.Problem.String())
