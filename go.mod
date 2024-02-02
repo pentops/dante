@@ -8,12 +8,13 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/pentops/log.go v0.0.0-20231218074934-67aedcab3fa4
 	github.com/pentops/o5-go v0.0.0-20240131215042-a246956c84a1
+	github.com/pentops/outbox.pg.go v0.0.0-20231222014950-493c01cfbcc7
+	github.com/pentops/sqrlx.go v0.0.0-20231212035131-ba083cf9eeb0
 	github.com/pressly/goose v2.7.0+incompatible
 	golang.org/x/sync v0.5.0
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.1-0.20231027082548-f4a6c1f6e5c1
 	gopkg.daemonl.com/envconf v0.0.0-20220909014755-d65ec77bd452
-	gopkg.daemonl.com/sqrlx v0.0.25
 )
 
 require (
