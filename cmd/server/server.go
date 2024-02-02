@@ -22,6 +22,8 @@ import (
 	"github.com/pentops/o5-go/dante/v1/dante_pb"
 	"github.com/pentops/o5-go/dante/v1/dante_spb"
 	"github.com/pentops/o5-go/dante/v1/dante_tpb"
+	"github.com/pentops/outbox.pg.go/outbox"
+	"github.com/pentops/sqrlx.go/sqrlx"
 	"github.com/pressly/goose"
 
 	"golang.org/x/sync/errgroup"
@@ -33,7 +35,6 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gopkg.daemonl.com/envconf"
-	"gopkg.daemonl.com/sqrlx"
 )
 
 var Version string
@@ -208,7 +209,87 @@ func (ds *DeadletterService) UpdateDeadMessage(ctx context.Context, req *dante_s
 }
 
 func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_spb.ReplayDeadMessageRequest) (*dante_spb.ReplayDeadMessageResponse, error) {
-	return nil, nil
+	res := dante_spb.ReplayDeadMessageResponse{}
+
+	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+		ReadOnly:  false,
+		Retryable: true,
+	}, func(ctx context.Context, tx sqrlx.Transaction) error {
+		var deadletter, message_id string
+		q := sq.Select("message_id, deadletter").From("messages").Where("message_id = ?", req.MessageId)
+		err := tx.QueryRow(ctx, q).Scan(&message_id, &deadletter)
+		if err != nil {
+			return err
+		}
+
+		deadProto := dante_pb.DeadMessageState{}
+		err = ds.protojson.Unmarshal([]byte(deadletter), &deadProto)
+		if err != nil {
+			log.WithError(ctx, err).Error("Couldn't unmarshal dead letter")
+			return err
+		}
+		deadProto.Status = dante_pb.MessageStatus_MESSAGE_STATUS_REPLAYED
+
+		msg_json, err := ds.protojson.Marshal(&deadProto)
+		if err != nil {
+			log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
+			return err
+		}
+
+		u := sq.Update("messages").SetMap(map[string]interface{}{
+			"deadletter": msg_json,
+		}).Where("message_id = ?", req.MessageId)
+
+		_, err = tx.Update(ctx, u)
+		if err != nil {
+			log.WithError(ctx, err).Error("Couldn't update dead letter")
+			return err
+		}
+
+		event := dante_pb.DeadMessageEvent{
+			Metadata: &dante_pb.Metadata{
+				EventId:   uuid.NewString(),
+				Timestamp: timestamppb.Now(),
+				Actor:     &auth_pb.Actor{},
+			},
+			MessageId: req.MessageId,
+			Event: &dante_pb.DeadMessageEventType{
+				Type: &dante_pb.DeadMessageEventType_Replayed_{
+					Replayed: &dante_pb.DeadMessageEventType_Replayed{},
+				},
+			},
+		}
+
+		event_json, err := ds.protojson.Marshal(&event)
+		if err != nil {
+			log.Infof(ctx, "couldn't turn dead letter event into json: %v", err.Error())
+			return err
+		}
+
+		_, err = tx.Insert(ctx, sq.Insert("message_events").SetMap(map[string]interface{}{
+			"message_id": req.MessageId,
+			"msg_event":  event_json,
+			"id":         event.Metadata.EventId,
+		}))
+		if err != nil {
+			return err
+		}
+
+		// There's gonna be work here to sort out what type of message to send
+		err = outbox.Send(ctx, tx, &dante_tpb.DeadMessage{})
+		if err != nil {
+			log.Infof(ctx, "couldn't send replay to outbox: %v", err.Error())
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		log.WithError(ctx, err).Error("Couldn't save dead letter change to database")
+		return nil, err
+	}
+
+	return &res, nil
 }
 
 func (ds *DeadletterService) RejectDeadMessage(ctx context.Context, req *dante_spb.RejectDeadMessageRequest) (*dante_spb.RejectDeadMessageResponse, error) {
