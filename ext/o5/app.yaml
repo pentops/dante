@@ -5,6 +5,10 @@ secrets:
   - name: protobufsrc
   - name: slack
 
+awsConfig:
+  sqs_publish_anywhere:
+    send_anywhere: true
+
 databases:
   - name: main
     postgres:

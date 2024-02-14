@@ -12,6 +12,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	sq "github.com/elgris/sqrl"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -22,7 +26,6 @@ import (
 	"github.com/pentops/o5-go/dante/v1/dante_pb"
 	"github.com/pentops/o5-go/dante/v1/dante_spb"
 	"github.com/pentops/o5-go/dante/v1/dante_tpb"
-	"github.com/pentops/outbox.pg.go/outbox"
 	"github.com/pentops/sqrlx.go/sqrlx"
 	"github.com/pressly/goose"
 
@@ -38,6 +41,7 @@ import (
 )
 
 var Version string
+var sqsClient *sqs.Client
 
 func main() {
 	ctx := context.Background()
@@ -276,11 +280,32 @@ func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_s
 			return err
 		}
 
-		// There's gonna be work here to sort out what type of message to send
-		err = outbox.Send(ctx, tx, &dante_tpb.DeadMessage{})
+		// Direct SQS publish: pull this out into a function
+		hdrs := map[string]types.MessageAttributeValue{
+			"grpc-service": {
+				DataType:    aws.String("String"),
+				StringValue: aws.String(deadProto.CurrentSpec.GrpcName),
+			},
+			"grpc-message": {
+				DataType:    aws.String("String"),
+				StringValue: aws.String(fmt.Sprintf("%v", deadProto.CurrentSpec.Payload.Proto.MessageName())),
+			},
+			"Content-Type": {
+				DataType:    aws.String("String"),
+				StringValue: aws.String("application/json"),
+			},
+		}
+
+		i := sqs.SendMessageInput{
+			MessageBody:       &deadProto.CurrentSpec.Payload.Json,
+			QueueUrl:          &deadProto.CurrentSpec.QueueName,
+			MessageAttributes: hdrs,
+		}
+		log.Infof(ctx, "SQS message to be sent: %+v with body of %v", i, *i.MessageBody)
+		_, err = sqsClient.SendMessage(ctx, &i)
 		if err != nil {
-			log.Infof(ctx, "couldn't send replay to outbox: %v", err.Error())
-			return err
+			log.Errorf(ctx, "couldn't send SQS message for replay: %v", err.Error())
+			return fmt.Errorf("couldn't send SQS message for replay: %w", err)
 		}
 
 		return nil
@@ -684,8 +709,15 @@ func runServe(ctx context.Context) error {
 		return err
 	}
 
+	awsConfig, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to load configuration: %w", err)
+	}
+
+	sqsClient = sqs.NewFromConfig(awsConfig)
+
 	types := dynamictype.NewTypeRegistry()
-	err := types.LoadExternalProtobufs(cfg.ProtobufSrc)
+	err = types.LoadExternalProtobufs(cfg.ProtobufSrc)
 	if err != nil {
 		return err
 	}
