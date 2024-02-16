@@ -570,6 +570,7 @@ type SlackMessage struct {
 }
 
 func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessage) (*emptypb.Empty, error) {
+	rowInserted := false
 	s := dante_pb.DeadMessageSpec{
 		VersionId:      uuid.NewString(),
 		InfraMessageId: req.InfraMessageId,
@@ -642,9 +643,18 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 			}).Suffix("ON CONFLICT(message_id) DO NOTHING")
 		}
 
-		_, err := tx.Insert(ctx, q)
+		r, err := tx.Insert(ctx, q)
 		if err != nil {
+			log.WithError(ctx, err).Error("Couldn't insert message to database")
 			return err
+		}
+		p, err := r.RowsAffected()
+		if err != nil {
+			log.WithError(ctx, err).Error("Couldn't get count of rows affected")
+			return err
+		}
+		if p > 0 {
+			rowInserted = true
 		}
 
 		_, err = tx.Insert(ctx, sq.Insert("message_events").SetMap(map[string]interface{}{
@@ -662,7 +672,7 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		return nil, err
 	}
 
-	if len(ds.slackUrl) > 0 {
+	if len(ds.slackUrl) > 0 && rowInserted {
 		msg := SlackMessage{}
 		wrapper := `*Deadletter on*:
 %v
