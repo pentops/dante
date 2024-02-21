@@ -639,7 +639,7 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 			q = sq.Insert("messages").SetMap(map[string]interface{}{
 				"message_id": dms.MessageId,
 				"deadletter": msg_json,
-				"messages":   raw,
+				"raw_msg":    raw,
 			}).Suffix("ON CONFLICT(message_id) DO NOTHING")
 		}
 
