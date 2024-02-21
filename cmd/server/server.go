@@ -220,10 +220,11 @@ func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_s
 		ReadOnly:  false,
 		Retryable: true,
 	}, func(ctx context.Context, tx sqrlx.Transaction) error {
-		var deadletter, message_id string
-		q := sq.Select("message_id, deadletter").From("messages").Where("message_id = ?", req.MessageId)
-		err := tx.QueryRow(ctx, q).Scan(&message_id, &deadletter)
+		var deadletter, message_id, raw string
+		q := sq.Select("message_id, deadletter, raw_msg").From("messages").Where("message_id = ?", req.MessageId)
+		err := tx.QueryRow(ctx, q).Scan(&message_id, &deadletter, &raw)
 		if err != nil {
+			log.WithError(ctx, err).Error("Couldn't query dead letter from db")
 			return err
 		}
 
@@ -234,6 +235,16 @@ func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_s
 			return err
 		}
 		deadProto.Status = dante_pb.MessageStatus_MESSAGE_STATUS_REPLAYED
+
+		if deadProto.CurrentSpec.Payload == nil {
+			log.Infof(ctx, "spec payload is nil, using raw msg")
+			danteAny := dante_pb.Any{
+				Json: raw,
+			}
+			log.Info(ctx, "raw msg used")
+			deadProto.CurrentSpec.Payload = &danteAny
+			log.Infof(ctx, "danteany is %v", danteAny.Json)
+		}
 
 		msg_json, err := ds.protojson.Marshal(&deadProto)
 		if err != nil {
@@ -277,7 +288,21 @@ func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_s
 			"id":         event.Metadata.EventId,
 		}))
 		if err != nil {
+			log.Infof(ctx, "couldn't save message event: %v", err.Error())
 			return err
+		}
+
+		if deadProto.CurrentSpec == nil {
+			log.Infof(ctx, "spec is nil")
+			return fmt.Errorf("deadproto currentspec is nil and shouldn't be")
+		}
+		if deadProto.CurrentSpec.Payload == nil {
+			log.Infof(ctx, "spec payload is nil")
+			return fmt.Errorf("deadproto currentspec payload is nil and shouldn't be")
+		}
+		if deadProto.CurrentSpec.Payload.Proto == nil {
+			log.Infof(ctx, "spec payload proto is nil")
+			return fmt.Errorf("deadproto currentspec payload proto is nil and shouldn't be")
 		}
 
 		// Direct SQS publish: pull this out into a function
@@ -587,10 +612,11 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		Status:      dante_pb.MessageStatus_CREATED,
 	}
 
-	raw := []byte{}
+	raw := ""
 	msg_json, err := ds.protojson.Marshal(&dms)
 	if err != nil {
 		log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
+		raw = dms.CurrentSpec.Payload.Json
 		// Anything that has an "any" field is suspect
 		dms.CurrentSpec.Payload = nil
 		msg_json, err = ds.protojson.Marshal(&dms)
@@ -599,7 +625,6 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 			return nil, err
 		}
 
-		raw = req.Payload.Proto.Value
 	}
 
 	event := dante_pb.DeadMessageEvent{
