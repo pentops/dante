@@ -1,7 +1,7 @@
 FROM bufbuild/buf AS bufdownload
 RUN buf build buf.build/pentops/o5 -o pentops-o5.binpb
 
-FROM golang:1.21 AS builder
+FROM golang:1.22 AS builder
 
 RUN mkdir /src
 WORKDIR /src
