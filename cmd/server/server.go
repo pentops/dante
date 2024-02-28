@@ -220,7 +220,8 @@ func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_s
 		ReadOnly:  false,
 		Retryable: true,
 	}, func(ctx context.Context, tx sqrlx.Transaction) error {
-		var deadletter, message_id, raw string
+		var deadletter, message_id string
+		var raw sql.NullString
 		q := sq.Select("message_id, deadletter, raw_msg").From("messages").Where("message_id = ?", req.MessageId)
 		err := tx.QueryRow(ctx, q).Scan(&message_id, &deadletter, &raw)
 		if err != nil {
@@ -238,8 +239,12 @@ func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_s
 
 		if deadProto.CurrentSpec.Payload == nil {
 			log.Infof(ctx, "spec payload is nil, using raw msg")
+			if !raw.Valid {
+				log.Info(ctx, "tried to use raw msg but it was null")
+				return fmt.Errorf("failed to fall back to raw message as it was null")
+			}
 			danteAny := dante_pb.Any{
-				Json: raw,
+				Json: raw.String,
 			}
 			log.Info(ctx, "raw msg used")
 			deadProto.CurrentSpec.Payload = &danteAny
