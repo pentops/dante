@@ -34,7 +34,7 @@ require (
 	github.com/aws/smithy-go v1.20.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
-	github.com/pentops/protostate v0.0.0-20240228001229-c03cf1448aa9 // indirect
+	github.com/pentops/protostate v0.0.0-20240301170119-38194b1344f3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	golang.org/x/exp v0.0.0-20240103183307-be819d1f06fc // indirect
 	golang.org/x/net v0.19.0 // indirect
