@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.4.0
 	github.com/lib/pq v1.10.9
 	github.com/pentops/log.go v0.0.0-20231218074934-67aedcab3fa4
-	github.com/pentops/o5-go v0.0.0-20240229192755-33b07be4d3fb
+	github.com/pentops/o5-go v0.0.0-20240305175850-cc755b7189f6
 	github.com/pentops/sqrlx.go v0.0.0-20240108202916-8687fdf983c0
 	github.com/pressly/goose v2.7.0+incompatible
 	golang.org/x/sync v0.5.0
@@ -21,6 +21,7 @@ require (
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.31.0-20231115204500-e097f827e652.2 // indirect
+	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.0 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.15.0 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.0 // indirect
@@ -32,10 +33,14 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.22.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.27.0 // indirect
 	github.com/aws/smithy-go v1.20.0 // indirect
+	github.com/bufbuild/protovalidate-go v0.4.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/google/cel-go v0.18.2 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
+	github.com/pentops/outbox.pg.go v0.0.0-20231222014950-493c01cfbcc7 // indirect
 	github.com/pentops/protostate v0.0.0-20240301170119-38194b1344f3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/stoewer/go-strcase v1.3.0 // indirect
 	golang.org/x/exp v0.0.0-20240103183307-be819d1f06fc // indirect
 	golang.org/x/net v0.19.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
