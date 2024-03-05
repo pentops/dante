@@ -127,6 +127,8 @@ type DeadletterService struct {
 	protojson ProtoJSON
 	slackUrl  string
 
+	// dante_pb.DeadmessagePSM
+
 	dante_tpb.UnimplementedDeadMessageTopicServer
 	dante_spb.UnimplementedDeadMessageQueryServiceServer
 	dante_spb.UnimplementedDeadMessageCommandServiceServer
@@ -545,6 +547,27 @@ func (ds *DeadletterService) GetDeadMessage(ctx context.Context, req *dante_spb.
 	res.Message = &deadProto
 
 	return &res, nil
+}
+
+func newPsm() (*dante_pb.DeadmessagePSM, error) {
+	config := dante_pb.DefaultDeadmessagePSMConfig()
+	sm, err := config.NewStateMachine()
+	if err != nil {
+		return nil, err
+	}
+
+	sm.From(dante_pb.MessageStatus_UNSPECIFIED).Do(
+		dante_pb.DeadmessagePSMFunc(func(ctx context.Context,
+			tb dante_pb.DeadmessagePSMTransitionBaton,
+			state *dante_pb.DeadMessageState,
+			event *dante_pb.DeadMessageEventType_Created) error {
+
+			state.Status = dante_pb.MessageStatus_MESSAGE_STATUS_CREATED
+			// Assume we want the deadmessagespec items from the Dead function in here as well
+			return nil
+		}))
+
+	return sm, nil
 }
 
 func (ds *DeadletterService) ListDeadMessages(ctx context.Context, req *dante_spb.ListDeadMessagesRequest) (*dante_spb.ListDeadMessagesResponse, error) {
