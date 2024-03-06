@@ -26,6 +26,7 @@ import (
 	"github.com/pentops/o5-go/dante/v1/dante_pb"
 	"github.com/pentops/o5-go/dante/v1/dante_spb"
 	"github.com/pentops/o5-go/dante/v1/dante_tpb"
+	"github.com/pentops/protostate/psm"
 	"github.com/pentops/sqrlx.go/sqrlx"
 	"github.com/pressly/goose"
 
@@ -127,7 +128,7 @@ type DeadletterService struct {
 	protojson ProtoJSON
 	slackUrl  string
 
-	// dante_pb.DeadmessagePSM
+	messageQuerySet dante_spb.MessagePSMQuerySet
 
 	dante_tpb.UnimplementedDeadMessageTopicServer
 	dante_spb.UnimplementedDeadMessageQueryServiceServer
@@ -754,11 +755,17 @@ func NewDeadletterServiceService(conn sqrlx.Connection, resolver dynamictype.Res
 		return nil, err
 	}
 
+	q, err := newPsm()
+	b := dante_spb.DefaultMessagePSMQuerySpec(q.StateTableSpec())
+	qset, err := dante_spb.NewMessagePSMQuerySet(b, psm.StateQueryOptions{})
+
 	return &DeadletterService{
-		db:        db,
-		protojson: dynamictype.NewProtoJSON(resolver),
-		slackUrl:  slack,
+		db:              db,
+		protojson:       dynamictype.NewProtoJSON(resolver),
+		slackUrl:        slack,
+		messageQuerySet: *qset,
 	}, nil
+
 }
 
 func runServe(ctx context.Context) error {
