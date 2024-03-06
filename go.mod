@@ -11,6 +11,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/pentops/log.go v0.0.0-20231218074934-67aedcab3fa4
 	github.com/pentops/o5-go v0.0.0-20240306185104-17c6e899663b
+	github.com/pentops/protostate v0.0.0-20240301170119-38194b1344f3
 	github.com/pentops/sqrlx.go v0.0.0-20240108202916-8687fdf983c0
 	github.com/pressly/goose v2.7.0+incompatible
 	golang.org/x/sync v0.5.0
@@ -38,7 +39,6 @@ require (
 	github.com/google/cel-go v0.18.2 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/pentops/outbox.pg.go v0.0.0-20231222014950-493c01cfbcc7 // indirect
-	github.com/pentops/protostate v0.0.0-20240301170119-38194b1344f3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
 	golang.org/x/exp v0.0.0-20240103183307-be819d1f06fc // indirect

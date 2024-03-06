@@ -572,51 +572,9 @@ func newPsm() (*dante_pb.DeadmessagePSM, error) {
 }
 
 func (ds *DeadletterService) ListDeadMessages(ctx context.Context, req *dante_spb.ListDeadMessagesRequest) (*dante_spb.ListDeadMessagesResponse, error) {
-	res := dante_spb.ListDeadMessagesResponse{}
+	res := &dante_spb.ListDeadMessagesResponse{}
 
-	q := sq.Select(
-		"message_id, deadletter",
-	).From("messages").OrderBy("created_at DESC").Limit(100) // pagination to be done later
-
-	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
-		Isolation: sql.LevelReadCommitted,
-		ReadOnly:  true,
-		Retryable: true,
-	}, func(ctx context.Context, tx sqrlx.Transaction) error {
-		rows, err := tx.Select(ctx, q)
-
-		if err != nil {
-			log.WithError(ctx, err).Error("Couldn't query database")
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			deadJson := ""
-			msg_id := ""
-
-			if err := rows.Scan(
-				&msg_id, &deadJson,
-			); err != nil {
-				return err
-			}
-
-			deadProto := dante_pb.DeadMessageState{}
-			err = ds.protojson.Unmarshal([]byte(deadJson), &deadProto)
-			if err != nil {
-				log.WithError(ctx, err).Error("Couldn't unmarshal dead letter")
-				return err
-			}
-			res.Messages = append(res.Messages, &deadProto)
-		}
-
-		return nil
-	}); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		log.WithError(ctx, err).Error("Couldn't read dead letters")
-		return nil, err
-	}
-
-	return &res, nil
+	return res, ds.messageQuerySet.List(ctx, ds.db, req, res)
 }
 
 type SlackMessage struct {
