@@ -90,8 +90,8 @@ github.com/pentops/jsonapi v0.0.0-20240125182748-28bbbf8f7311 h1:JeqazO7kfp3xmgg
 github.com/pentops/jsonapi v0.0.0-20240125182748-28bbbf8f7311/go.mod h1:+G29pelqimEuvqxtzUS3or1tZKssK8Mc0+JBInSR5k0=
 github.com/pentops/log.go v0.0.0-20231218074934-67aedcab3fa4 h1:7kPDmBAQxMxcFIYt1rEco/AipZmm1CUoND3wSDmIOeI=
 github.com/pentops/log.go v0.0.0-20231218074934-67aedcab3fa4/go.mod h1:UXhrs+VZ6cWZ7b/v8AtuvBZc5nwS5WFHP94JoFrZQA8=
-github.com/pentops/o5-go v0.0.0-20240305175850-cc755b7189f6 h1:BwCdPyH7+9xLrJSDW4XRjSYz2h6kxhKUUNi7VKc14XE=
-github.com/pentops/o5-go v0.0.0-20240305175850-cc755b7189f6/go.mod h1:8OCaJmBMRQ9oboVy1eV400SQp6yuXWk7n2XCgHlc4EE=
+github.com/pentops/o5-go v0.0.0-20240306185104-17c6e899663b h1:8OIZwtms0CvNb5t1qpmOQvLUufjzLpskfAXiCj6b2Mg=
+github.com/pentops/o5-go v0.0.0-20240306185104-17c6e899663b/go.mod h1:8OCaJmBMRQ9oboVy1eV400SQp6yuXWk7n2XCgHlc4EE=
 github.com/pentops/outbox.pg.go v0.0.0-20231222014950-493c01cfbcc7 h1:rBLoeUeI1acxd6GbJjJbK6CeVF/q/Xab+xqQYePvNSw=
 github.com/pentops/outbox.pg.go v0.0.0-20231222014950-493c01cfbcc7/go.mod h1:yMefMPLP0eBAxdELkAgjTtnhWFfc0Wk2H2kePByDHRo=
 github.com/pentops/protostate v0.0.0-20240301170119-38194b1344f3 h1:OVqxQGSmpjuJt+YEzJ2TXuw51zWOfRj8JfQ1dSBJzXY=

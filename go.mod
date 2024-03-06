@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.4.0
 	github.com/lib/pq v1.10.9
 	github.com/pentops/log.go v0.0.0-20231218074934-67aedcab3fa4
-	github.com/pentops/o5-go v0.0.0-20240305175850-cc755b7189f6
+	github.com/pentops/o5-go v0.0.0-20240306185104-17c6e899663b
 	github.com/pentops/sqrlx.go v0.0.0-20240108202916-8687fdf983c0
 	github.com/pressly/goose v2.7.0+incompatible
 	golang.org/x/sync v0.5.0
