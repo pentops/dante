@@ -756,8 +756,14 @@ func NewDeadletterServiceService(conn sqrlx.Connection, resolver dynamictype.Res
 	}
 
 	q, err := newPsm()
+	if err != nil {
+		return nil, fmt.Errorf("couldn't make new PSM: %w", err)
+	}
 	b := dante_spb.DefaultMessagePSMQuerySpec(q.StateTableSpec())
 	qset, err := dante_spb.NewMessagePSMQuerySet(b, psm.StateQueryOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("couldn't make new PSM query set: %w", err)
+	}
 
 	return &DeadletterService{
 		db:              db,
