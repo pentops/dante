@@ -599,6 +599,10 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		Status:      dante_pb.MessageStatus_CREATED,
 	}
 
+	// TODO: replace below
+	// build create event with dead message spec
+	// statemachine.Transition(event)
+
 	raw := ""
 	msg_json, err := ds.protojson.Marshal(&dms)
 	if err != nil {
