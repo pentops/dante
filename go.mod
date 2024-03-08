@@ -9,6 +9,8 @@ require (
 	github.com/elgris/sqrl v0.0.0-20210727210741-7e0198b30236
 	github.com/google/uuid v1.4.0
 	github.com/lib/pq v1.10.9
+	github.com/pentops/flowtest v0.0.0-20231213175137-ac050902e7fb
+	github.com/pentops/jsonapi v0.0.0-20240125182748-28bbbf8f7311
 	github.com/pentops/log.go v0.0.0-20231218074934-67aedcab3fa4
 	github.com/pentops/o5-go v0.0.0-20240306185104-17c6e899663b
 	github.com/pentops/protostate v0.0.0-20240301170119-38194b1344f3
@@ -34,10 +36,15 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.22.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.27.0 // indirect
 	github.com/aws/smithy-go v1.20.0 // indirect
+	github.com/bufbuild/protocompile v0.8.0 // indirect
 	github.com/bufbuild/protovalidate-go v0.4.2 // indirect
+	github.com/fatih/color v1.15.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/cel-go v0.18.2 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
+	github.com/jhump/protoreflect v1.15.5 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/pentops/outbox.pg.go v0.0.0-20231222014950-493c01cfbcc7 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
