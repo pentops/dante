@@ -564,7 +564,7 @@ func newPsm() (*dante_pb.DeadmessagePSM, error) {
 			event *dante_pb.DeadMessageEventType_Created) error {
 
 			state.Status = dante_pb.MessageStatus_MESSAGE_STATUS_CREATED
-			// Assume we want the deadmessagespec items from the Dead function in here as well
+			state.CurrentSpec = event.Spec
 			return nil
 		}))
 
