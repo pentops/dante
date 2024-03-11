@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/pentops/dante/dynamictype"
+	"github.com/pentops/dante/service"
 	"github.com/pentops/flowtest"
 	"github.com/pentops/log.go/log"
 	"github.com/pentops/o5-go/dante/v1/dante_spb"
@@ -45,7 +46,7 @@ func (uu *Universe) RunSteps(t *testing.T) {
 	// 	t.Fatal(err)
 	// }
 	types := dynamictype.NewTypeRegistry()
-	_, err := NewDeadletterServiceService(conn, types, "")
+	_, err := service.NewDeadletterServiceService(conn, types, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}

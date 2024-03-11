@@ -14,7 +14,6 @@ import (
 )
 
 func TestDynamicLoad(t *testing.T) {
-
 	msgBase64 := "CgNmb28="
 	// a message with a single field, number 1, value is 'foo'
 
