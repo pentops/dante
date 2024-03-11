@@ -78,7 +78,6 @@ func TestFieldPath(tt *testing.T) {
 	}
 
 	uu.Step("Create a dead message", func(t flowtest.Asserter) {
-		// nil here at deadmessageworker
 		_, err := uu.DeadMessageWorker.Dead(ctx, msg)
 
 		t.NoError(err)
@@ -89,7 +88,6 @@ func TestFieldPath(tt *testing.T) {
 			MessageId: &msg.MessageId,
 		}
 
-		// listdeadmessages uses the psm for db access and unmarshalling, switch to that
 		resp, err := uu.DeadMessageQuery.GetDeadMessage(ctx, req)
 		t.NoError(err)
 

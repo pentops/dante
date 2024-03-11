@@ -47,21 +47,11 @@ func (uu *Universe) RunSteps(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// dante_spb.RegisterDeadMessageQueryServiceServer(grpcPair.Server, queryService)
-	// uu.DeadMessageQuery = dante_spb.NewDeadMessageQueryServiceClient(grpcPair.Client)
+	dante_spb.RegisterDeadMessageQueryServiceServer(grpcPair.Server, service)
+	uu.DeadMessageQuery = dante_spb.NewDeadMessageQueryServiceClient(grpcPair.Client)
 
-	// commandService, err := service.NewDeadMessageCommandService(conn, sm)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-
-	// dante_spb.RegisterDeadMessageCommandServiceServer(grpcPair.Server, commandService)
-	// uu.DeadMessageCommand = dante_spb.NewDeadMessageCommandServiceClient(grpcPair.Client)
-
-	// deadMessageWorker, err := worker.NewDeadMessageWorker(conn)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
+	dante_spb.RegisterDeadMessageCommandServiceServer(grpcPair.Server, service)
+	uu.DeadMessageCommand = dante_spb.NewDeadMessageCommandServiceClient(grpcPair.Client)
 
 	dante_tpb.RegisterDeadMessageTopicServer(topicPair.Server, service)
 	uu.DeadMessageWorker = dante_tpb.NewDeadMessageTopicClient(topicPair.Client)

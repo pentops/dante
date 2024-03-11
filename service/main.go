@@ -554,6 +554,7 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		log.Infof(ctx, "couldn't turn dead letter event into json: %v", err.Error())
 		return nil, err
 	}
+
 	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
 		Isolation: sql.LevelReadCommitted,
 		ReadOnly:  false,
