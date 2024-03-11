@@ -86,6 +86,7 @@ func TestFieldPath(tt *testing.T) {
 			MessageId: &msg.MessageId,
 		}
 
+		// listdeadmessages uses the psm for db access and unmarshalling, switch to that
 		resp, err := uu.DeadMessageQuery.GetDeadMessage(ctx, req)
 		t.NoError(err)
 
