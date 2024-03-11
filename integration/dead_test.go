@@ -22,6 +22,7 @@ func TestFieldPath(tt *testing.T) {
 	defer cancel()
 	uu := NewUniverse(ctx, tt)
 	defer uu.RunSteps(tt)
+	var msg *dante_tpb.DeadMessage
 
 	descFiles := prototest.DescriptorsFromSource(tt, map[string]string{
 		"test.proto": `
@@ -50,7 +51,7 @@ func TestFieldPath(tt *testing.T) {
 		tt.Fatal(err)
 	}
 
-	msg := &dante_tpb.DeadMessage{
+	msg = &dante_tpb.DeadMessage{
 		MessageId:      uuid.NewString(),
 		InfraMessageId: uuid.NewString(),
 
@@ -77,7 +78,9 @@ func TestFieldPath(tt *testing.T) {
 	}
 
 	uu.Step("Create a dead message", func(t flowtest.Asserter) {
+		// nil here at deadmessageworker
 		_, err := uu.DeadMessageWorker.Dead(ctx, msg)
+
 		t.NoError(err)
 	})
 

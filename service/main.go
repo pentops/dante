@@ -497,6 +497,7 @@ type SlackMessage struct {
 
 func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessage) (*emptypb.Empty, error) {
 	rowInserted := false
+
 	s := dante_pb.DeadMessageSpec{
 		VersionId:      uuid.NewString(),
 		InfraMessageId: req.InfraMessageId,
@@ -553,7 +554,6 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		log.Infof(ctx, "couldn't turn dead letter event into json: %v", err.Error())
 		return nil, err
 	}
-
 	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
 		Isolation: sql.LevelReadCommitted,
 		ReadOnly:  false,

@@ -41,12 +41,8 @@ func (uu *Universe) RunSteps(t *testing.T) {
 	grpcPair := flowtest.NewGRPCPair(t)
 	topicPair := flowtest.NewGRPCPair(t)
 
-	// sm, err := newPsm()
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
 	types := dynamictype.NewTypeRegistry()
-	_, err := service.NewDeadletterServiceService(conn, types, nil, "")
+	service, err := service.NewDeadletterServiceService(conn, types, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,8 +63,8 @@ func (uu *Universe) RunSteps(t *testing.T) {
 	// 	t.Fatal(err)
 	// }
 
-	// dante_tpb.RegisterDeadMessageTopicServer(topicPair.Server, deadMessageWorker)
-	// uu.DeadMessageWorker = dante_tpb.NewDeadMessageTopicClient(topicPair.Client)
+	dante_tpb.RegisterDeadMessageTopicServer(topicPair.Server, service)
+	uu.DeadMessageWorker = dante_tpb.NewDeadMessageTopicClient(topicPair.Client)
 
 	grpcPair.ServeUntilDone(t, ctx)
 	topicPair.ServeUntilDone(t, ctx)
