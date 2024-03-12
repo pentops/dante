@@ -10,6 +10,7 @@ import (
 	"github.com/pentops/o5-go/dante/v1/dante_pb"
 	"github.com/pentops/o5-go/dante/v1/dante_spb"
 	"github.com/pentops/o5-go/dante/v1/dante_tpb"
+	"github.com/pentops/protostate/gen/list/v1/psml_pb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/dynamicpb"
@@ -77,10 +78,37 @@ func TestFieldPath(tt *testing.T) {
 		},
 	}
 
-	uu.Step("Create a dead message", func(t flowtest.Asserter) {
+	uu.Step("Create two dead letters", func(t flowtest.Asserter) {
 		_, err := uu.DeadMessageWorker.Dead(ctx, msg)
-
 		t.NoError(err)
+
+		msg.MessageId = uuid.NewString()
+		_, err = uu.DeadMessageWorker.Dead(ctx, msg)
+		t.NoError(err)
+	})
+
+	uu.Step("List all dead messages", func(t flowtest.Asserter) {
+		req := &dante_spb.ListDeadMessagesRequest{}
+
+		resp, err := uu.DeadMessageQuery.ListDeadMessages(ctx, req)
+		t.NoError(err)
+		if len(resp.Messages) != 2 {
+			t.Fatal("Should have exactly two dead letters")
+		}
+	})
+
+	uu.Step("Get a small page of dead messages", func(t flowtest.Asserter) {
+		req := &dante_spb.ListDeadMessagesRequest{
+			Page: &psml_pb.PageRequest{
+				PageSize: proto.Int64(1),
+			},
+		}
+
+		resp, err := uu.DeadMessageQuery.ListDeadMessages(ctx, req)
+		t.NoError(err)
+		if len(resp.Messages) != 1 {
+			t.Fatal("Should have at least one dead letter")
+		}
 	})
 
 	uu.Step("Get dead message", func(t flowtest.Asserter) {
