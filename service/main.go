@@ -563,19 +563,16 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 	// build create event with dead message spec
 	// statemachine.Transition(event)
 
-	raw := ""
 	msg_json, err := ds.protojson.Marshal(&dms)
 	if err != nil {
 		log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
-		raw = dms.CurrentSpec.Payload.Json
-		// Anything that has an "any" field is suspect
-		dms.CurrentSpec.Payload = nil
+		dms.CurrentSpec.Payload.Proto = nil
+
 		msg_json, err = ds.protojson.Marshal(&dms)
 		if err != nil {
 			log.Infof(ctx, "couldn't turn dead letter into json after removing payload: %v", err.Error())
 			return nil, err
 		}
-
 	}
 
 	event := dante_pb.DeadMessageEvent{
@@ -610,14 +607,6 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 			"message_id": dms.MessageId,
 			"deadletter": msg_json,
 		}).Suffix("ON CONFLICT(message_id) DO NOTHING")
-
-		if len(raw) > 0 {
-			q = sq.Insert("messages").SetMap(map[string]interface{}{
-				"message_id": dms.MessageId,
-				"deadletter": msg_json,
-				"raw_msg":    raw,
-			}).Suffix("ON CONFLICT(message_id) DO NOTHING")
-		}
 
 		r, err := tx.Insert(ctx, q)
 		if err != nil {
