@@ -1,0 +1,14 @@
+name: Local Test
+
+on: [push]
+
+jobs:
+  test:
+    name: Local Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Test
+        run: docker-compose -f docker-compose.test.yaml up --abort-on-container-exit test
