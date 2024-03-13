@@ -140,5 +140,7 @@ func TestFieldPath(tt *testing.T) {
 		if c.Payload == nil {
 			t.Fatal("Payload is nil")
 		}
+
+		t.Equal(1, len(resp.Events))
 	})
 }
