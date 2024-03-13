@@ -18,6 +18,67 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+func TestShelve(tt *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	uu := NewUniverse(ctx, tt)
+	defer uu.RunSteps(tt)
+
+	msg := &dante_tpb.DeadMessage{
+		MessageId:      uuid.NewString(),
+		InfraMessageId: uuid.NewString(),
+
+		QueueName: "test",
+		GrpcName:  "test.Foo",
+
+		Timestamp: timestamppb.Now(),
+
+		Payload: &dante_pb.Any{
+			Json: string("fake json"),
+		},
+
+		Problem: &dante_pb.Problem{
+			Type: &dante_pb.Problem_UnhandledError{
+				UnhandledError: &dante_pb.UnhandledError{
+					Error: "test error",
+				},
+			},
+		},
+	}
+
+	uu.Step("Create a dead letter", func(t flowtest.Asserter) {
+		_, err := uu.DeadMessageWorker.Dead(ctx, msg)
+		t.NoError(err)
+	})
+
+	uu.Step("Get a specific dead message", func(t flowtest.Asserter) {
+		req := &dante_spb.GetDeadMessageRequest{
+			MessageId: &msg.MessageId,
+		}
+
+		resp, err := uu.DeadMessageQuery.GetDeadMessage(ctx, req)
+		t.NoError(err)
+		t.Equal(dante_pb.MessageStatus_MESSAGE_STATUS_CREATED, resp.Message.Status)
+	})
+
+	uu.Step("Shelve the letter", func(t flowtest.Asserter) {
+		req := &dante_spb.RejectDeadMessageRequest{
+			MessageId: msg.MessageId,
+			Reason:    "not valid",
+		}
+
+		resp, err := uu.DeadMessageCommand.RejectDeadMessage(ctx, req)
+		t.NoError(err)
+
+		// verify state
+		t.Equal(dante_pb.DeadMessageEvent_Rejected, resp.Message.Status)
+
+		// verify events
+		// check state transition too
+	})
+
+}
+
 func TestFieldPath(tt *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
