@@ -111,7 +111,7 @@ func TestFieldPath(tt *testing.T) {
 		}
 	})
 
-	uu.Step("Get dead message", func(t flowtest.Asserter) {
+	uu.Step("Get a specific dead message", func(t flowtest.Asserter) {
 		req := &dante_spb.GetDeadMessageRequest{
 			MessageId: &msg.MessageId,
 		}

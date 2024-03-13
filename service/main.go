@@ -394,74 +394,9 @@ func (ds *DeadletterService) ListDeadMessageEvents(ctx context.Context, req *dan
 }
 
 func (ds *DeadletterService) GetDeadMessage(ctx context.Context, req *dante_spb.GetDeadMessageRequest) (*dante_spb.GetDeadMessageResponse, error) {
-	res := dante_spb.GetDeadMessageResponse{
-		Events: make([]*dante_pb.DeadMessageEvent, 0),
-	}
+	res := &dante_spb.GetDeadMessageResponse{}
 
-	var message_id string
-	var created_at, updated_at string
-	var deadletter string
-
-	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
-		Isolation: sql.LevelReadCommitted,
-		ReadOnly:  true,
-		Retryable: true,
-	}, func(ctx context.Context, tx sqrlx.Transaction) error {
-		q := sq.Select("message_id, created_at, updated_at, deadletter").From("messages").Where("message_id = ?", *req.MessageId)
-		err := tx.QueryRow(ctx, q).Scan(&message_id, &created_at, &updated_at, &deadletter)
-		if err != nil {
-			return err
-		}
-
-		// Limit instead of paging for now
-		e := sq.Select("id, message_id, tstamp, msg_event").From("message_events").Where("message_id = ?", *req.MessageId).OrderBy("tstamp DESC").Limit(100)
-		rows, err := tx.Select(ctx, e)
-
-		if err != nil {
-			log.WithError(ctx, err).Error("Couldn't query database")
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			id := ""
-			msg_id := ""
-			tstamp := ""
-			event := ""
-
-			if err := rows.Scan(
-				&id, &msg_id, &tstamp, &event,
-			); err != nil {
-				return err
-			}
-
-			eproto := dante_pb.DeadMessageEvent{}
-			err := ds.protojson.Unmarshal([]byte(event), &eproto)
-			if err != nil {
-				log.WithError(ctx, err).Error("Couldn't unmarshal dead letter event")
-				return err
-			}
-			res.Events = append(res.Events, &eproto)
-		}
-		return nil
-
-	}); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		log.WithError(ctx, err).Error("Couldn't get dead letter")
-		return nil, err
-	} else if err != nil && errors.Is(err, sql.ErrNoRows) {
-		return nil, status.Error(codes.NotFound, "Dead letter not found")
-	}
-
-	deadProto := dante_pb.DeadMessageState{}
-	err := ds.protojson.Unmarshal([]byte(deadletter), &deadProto)
-	if err != nil {
-		log.WithError(ctx, err).Error("Couldn't unmarshal dead letter")
-		return nil, err
-	}
-
-	res.Message = &deadProto
-
-	return &res, nil
+	return res, ds.messageQuerySet.Get(ctx, ds.db, req, res)
 }
 
 func newPsm() (*dante_pb.DeadmessagePSM, error) {
@@ -628,6 +563,10 @@ func NewDeadletterServiceService(conn sqrlx.Connection, resolver dynamictype.Res
 	a := q.StateTableSpec()
 	a.State.TableName = "messages"
 	a.State.DataColumn = "deadletter"
+
+	a.Event.DataColumn = "msg_event"
+	a.Event.TableName = "message_events"
+
 	b := dante_spb.DefaultMessagePSMQuerySpec(a)
 	qset, err := dante_spb.NewMessagePSMQuerySet(b, psm.StateQueryOptions{})
 	if err != nil {
