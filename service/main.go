@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -23,8 +22,6 @@ import (
 
 	"github.com/pentops/o5-go/auth/v1/auth_pb"
 	"github.com/pentops/sqrlx.go/sqrlx"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -344,53 +341,9 @@ func (ds *DeadletterService) RejectDeadMessage(ctx context.Context, req *dante_s
 }
 
 func (ds *DeadletterService) ListDeadMessageEvents(ctx context.Context, req *dante_spb.ListDeadMessageEventsRequest) (*dante_spb.ListDeadMessageEventsResponse, error) {
-	res := dante_spb.ListDeadMessageEventsResponse{}
+	res := &dante_spb.ListDeadMessageEventsResponse{}
 
-	if err := ds.db.Transact(ctx, &sqrlx.TxOptions{
-		Isolation: sql.LevelReadCommitted,
-		ReadOnly:  true,
-		Retryable: true,
-	}, func(ctx context.Context, tx sqrlx.Transaction) error {
-		// Limit instead of paging for now
-		e := sq.Select("id, message_id, tstamp, msg_event").From("message_events").Where("message_id = ?", req.MessageId).OrderBy("tstamp DESC").Limit(100)
-		rows, err := tx.Select(ctx, e)
-
-		if err != nil {
-			log.WithError(ctx, err).Error("Couldn't query database")
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			id := ""
-			msg_id := ""
-			tstamp := ""
-			event := ""
-
-			if err := rows.Scan(
-				&id, &msg_id, &tstamp, &event,
-			); err != nil {
-				return err
-			}
-
-			eproto := dante_pb.DeadMessageEvent{}
-			err := ds.protojson.Unmarshal([]byte(event), &eproto)
-			if err != nil {
-				log.WithError(ctx, err).Error("Couldn't unmarshal dead letter event")
-				return err
-			}
-			res.Events = append(res.Events, &eproto)
-		}
-		return nil
-
-	}); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		log.WithError(ctx, err).Error("Couldn't get dead letter events")
-		return nil, err
-	} else if err != nil && errors.Is(err, sql.ErrNoRows) {
-		return nil, status.Error(codes.NotFound, "Dead letter events not found")
-	}
-
-	return &res, nil
+	return res, ds.messageQuerySet.ListEvents(ctx, ds.db, req, res)
 }
 
 func (ds *DeadletterService) GetDeadMessage(ctx context.Context, req *dante_spb.GetDeadMessageRequest) (*dante_spb.GetDeadMessageResponse, error) {
