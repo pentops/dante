@@ -448,17 +448,18 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		Status:      dante_pb.MessageStatus_CREATED,
 	}
 
-	// msg_json, err := ds.protojson.Marshal(&dms)
-	// if err != nil {
-	// 	log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
-	// 	dms.CurrentSpec.Payload.Proto = nil
+	_, err := ds.protojson.Marshal(&dms)
+	if err != nil {
+		log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
+		// rely on the JSON version of the message
+		dms.CurrentSpec.Payload.Proto = nil
 
-	// 	msg_json, err = ds.protojson.Marshal(&dms)
-	// 	if err != nil {
-	// 		log.Infof(ctx, "couldn't turn dead letter into json after removing payload: %v", err.Error())
-	// 		return nil, err
-	// 	}
-	// }
+		_, err = ds.protojson.Marshal(&dms)
+		if err != nil {
+			log.Infof(ctx, "couldn't turn dead letter into json after removing payload: %v", err.Error())
+			return nil, err
+		}
+	}
 
 	event := dante_pb.DeadMessageEvent{
 		Metadata: &dante_pb.Metadata{
