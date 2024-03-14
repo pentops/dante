@@ -12,7 +12,6 @@ awsConfig:
 databases:
   - name: main
     postgres:
-      runOutbox: true
       dbName: dante
       serverGroup: default
       dbExtensions:

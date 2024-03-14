@@ -71,7 +71,7 @@ func TestShelve(tt *testing.T) {
 		t.NoError(err)
 
 		// verify state
-		t.Equal(dante_pb.DeadMessageEvent_Rejected, resp.Message.Status)
+		t.Equal(dante_pb.MessageStatus_MESSAGE_STATUS_REJECTED, resp.Message.Status)
 
 		// verify events
 		// check state transition too
