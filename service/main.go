@@ -71,11 +71,12 @@ func (ds *DeadletterService) UpdateDeadMessage(ctx context.Context, req *dante_s
 			},
 		}
 
-		_, err := ds.sm.TransitionInTx(ctx, tx, &event)
+		newState, err := ds.sm.TransitionInTx(ctx, tx, &event)
 		if err != nil {
 			log.Infof(ctx, "update PSM error: %v", err.Error())
 			return err
 		}
+		res.Message = newState
 
 		return nil
 	}); err != nil {
@@ -253,22 +254,6 @@ func (ds *DeadletterService) RejectDeadMessage(ctx context.Context, req *dante_s
 			return err
 		}
 		res.Message = s
-
-		// do we need to save this ourselves?
-		// event_json, err := ds.protojson.Marshal(&event)
-		// if err != nil {
-		// 	log.Infof(ctx, "couldn't turn dead letter event into json: %v", err.Error())
-		// 	return err
-		// }
-
-		// _, err = tx.Insert(ctx, sq.Insert("message_events").SetMap(map[string]interface{}{
-		// 	"message_id": req.MessageId,
-		// 	"msg_event":  event_json,
-		// 	"id":         event.Metadata.EventId,
-		// }))
-		// if err != nil {
-		// 	return err
-		// }
 
 		return nil
 	}); err != nil {
