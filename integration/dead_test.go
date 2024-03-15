@@ -18,6 +18,207 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+func TestUpdate(tt *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	uu := NewUniverse(ctx, tt)
+	defer uu.RunSteps(tt)
+
+	msg := &dante_tpb.DeadMessage{
+		MessageId:      uuid.NewString(),
+		InfraMessageId: uuid.NewString(),
+
+		QueueName: "test",
+		GrpcName:  "test.Foo",
+
+		Timestamp: timestamppb.Now(),
+
+		Payload: &dante_pb.Any{
+			Json: string("fake json"),
+		},
+
+		Problem: &dante_pb.Problem{
+			Type: &dante_pb.Problem_UnhandledError{
+				UnhandledError: &dante_pb.UnhandledError{
+					Error: "test error",
+				},
+			},
+		},
+	}
+
+	uu.Step("Create a dead letter", func(t flowtest.Asserter) {
+		_, err := uu.DeadMessageWorker.Dead(ctx, msg)
+		t.NoError(err)
+	})
+
+	uu.Step("Get a specific dead message", func(t flowtest.Asserter) {
+		req := &dante_spb.GetDeadMessageRequest{
+			MessageId: &msg.MessageId,
+		}
+
+		resp, err := uu.DeadMessageQuery.GetDeadMessage(ctx, req)
+		t.NoError(err)
+		t.Equal(dante_pb.MessageStatus_MESSAGE_STATUS_CREATED, resp.Message.Status)
+	})
+
+	uu.Step("Update the letter", func(t flowtest.Asserter) {
+		newVersion := dante_pb.DeadMessageSpec{
+			VersionId:      uuid.NewString(),
+			InfraMessageId: msg.InfraMessageId,
+			QueueName:      "new-queue-name",
+			GrpcName:       msg.GrpcName,
+			Payload:        msg.Payload,
+		}
+		req := &dante_spb.UpdateDeadMessageRequest{
+			MessageId: msg.MessageId,
+			Message:   &newVersion,
+		}
+
+		resp, err := uu.DeadMessageCommand.UpdateDeadMessage(ctx, req)
+		t.NoError(err)
+		if resp == nil || resp.Message == nil {
+			t.Fatal("Nothing in response")
+		} else {
+			if resp.Message != nil {
+				t.Equal(dante_pb.MessageStatus_MESSAGE_STATUS_UPDATED, resp.Message.Status)
+			}
+		}
+
+		r := &dante_spb.GetDeadMessageRequest{
+			MessageId: &msg.MessageId,
+		}
+
+		res, err := uu.DeadMessageQuery.GetDeadMessage(ctx, r)
+		t.NoError(err)
+
+		if res.Message == nil {
+			t.Fatal("Message is nil")
+		}
+
+		m := res.Message
+		t.Equal(msg.MessageId, m.MessageId)
+		t.Equal(m.Status, dante_pb.MessageStatus_MESSAGE_STATUS_UPDATED)
+
+		if len(res.Events) != 2 {
+			t.Fatal("Too many events")
+		}
+
+		var updated *dante_pb.DeadMessageEventType_Updated
+		var created *dante_pb.DeadMessageEventType_Created
+		for a := range res.Events {
+			if res.Events[a].Event.GetCreated() != nil {
+				created = res.Events[a].Event.GetCreated()
+			}
+			if res.Events[a].Event.GetUpdated() != nil {
+				updated = res.Events[a].Event.GetUpdated()
+			}
+		}
+		if created == nil {
+			t.Fatal("Couldn't find created event")
+		}
+		if updated == nil {
+			t.Fatal("Couldn't find updated event")
+		} else { // a little silliness to convince the linter it's okay to access the variable
+			t.Equal("new-queue-name", updated.Spec.QueueName)
+		}
+	})
+
+}
+
+func TestShelve(tt *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	uu := NewUniverse(ctx, tt)
+	defer uu.RunSteps(tt)
+
+	msg := &dante_tpb.DeadMessage{
+		MessageId:      uuid.NewString(),
+		InfraMessageId: uuid.NewString(),
+
+		QueueName: "test",
+		GrpcName:  "test.Foo",
+
+		Timestamp: timestamppb.Now(),
+
+		Payload: &dante_pb.Any{
+			Json: string("fake json"),
+		},
+
+		Problem: &dante_pb.Problem{
+			Type: &dante_pb.Problem_UnhandledError{
+				UnhandledError: &dante_pb.UnhandledError{
+					Error: "test error",
+				},
+			},
+		},
+	}
+
+	uu.Step("Create a dead letter", func(t flowtest.Asserter) {
+		_, err := uu.DeadMessageWorker.Dead(ctx, msg)
+		t.NoError(err)
+	})
+
+	uu.Step("Get a specific dead message", func(t flowtest.Asserter) {
+		req := &dante_spb.GetDeadMessageRequest{
+			MessageId: &msg.MessageId,
+		}
+
+		resp, err := uu.DeadMessageQuery.GetDeadMessage(ctx, req)
+		t.NoError(err)
+		t.Equal(dante_pb.MessageStatus_MESSAGE_STATUS_CREATED, resp.Message.Status)
+	})
+
+	uu.Step("Shelve the letter", func(t flowtest.Asserter) {
+		req := &dante_spb.RejectDeadMessageRequest{
+			MessageId: msg.MessageId,
+			Reason:    "not valid",
+		}
+
+		resp, err := uu.DeadMessageCommand.RejectDeadMessage(ctx, req)
+		t.NoError(err)
+
+		t.Equal(dante_pb.MessageStatus_MESSAGE_STATUS_REJECTED, resp.Message.Status)
+
+		r := &dante_spb.GetDeadMessageRequest{
+			MessageId: &msg.MessageId,
+		}
+
+		res, err := uu.DeadMessageQuery.GetDeadMessage(ctx, r)
+		t.NoError(err)
+
+		if res.Message == nil {
+			t.Fatal("Message is nil")
+		}
+
+		m := res.Message
+		t.Equal(msg.MessageId, m.MessageId)
+		t.Equal(m.Status, dante_pb.MessageStatus_MESSAGE_STATUS_REJECTED)
+
+		if len(res.Events) != 2 {
+			t.Fatal("Too many events")
+		}
+
+		var rejected *dante_pb.DeadMessageEventType_Rejected
+		var created *dante_pb.DeadMessageEventType_Created
+		for a := range res.Events {
+			if res.Events[a].Event.GetCreated() != nil {
+				created = res.Events[a].Event.GetCreated()
+			}
+			if res.Events[a].Event.GetRejected() != nil {
+				rejected = res.Events[a].Event.GetRejected()
+			}
+		}
+		if created == nil {
+			t.Fatal("Couldn't find created event")
+		}
+		if rejected == nil {
+			t.Fatal("Couldn't find rejected event")
+		} else { // a little silliness to convince the linter it's okay to access the variable
+			t.Equal("not valid", rejected.Reason)
+		}
+	})
+}
+
 func TestFieldPath(tt *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

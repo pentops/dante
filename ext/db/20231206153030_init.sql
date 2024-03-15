@@ -1,47 +1,21 @@
 -- +goose Up
-CREATE TABLE messages (
+CREATE TABLE deadmessage (
     message_id UUID PRIMARY KEY,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deadletter JSONB NOT NULL,
-    raw_msg JSONB
+    state JSONB NOT NULL
 );
 
-CREATE TABLE outbox (
-    id uuid PRIMARY KEY,
-    destination TEXT NOT NULL,
-    message BYTEA NOT NULL,
-    headers TEXT NOT NULL
-);
-
-CREATE TABLE message_events (
+CREATE TABLE deadmessage_event (
     id UUID PRIMARY KEY,
-    message_id UUID REFERENCES messages(message_id) NOT NULL,
-    tstamp TIMESTAMPTZ NOT NULL DEFAULT now(),
-    msg_event JSONB NOT NULL
+    message_id UUID REFERENCES deadmessage(message_id) NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
+    actor jsonb NOT NULL,
+	  data jsonb NOT NULL
 );
 
-CREATE INDEX message_id_idx ON message_events(message_id);
-
--- +goose StatementBegin
-CREATE FUNCTION outbox_notify()
-  RETURNS TRIGGER AS $$ DECLARE
-BEGIN
-  NOTIFY outboxmessage;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
--- +goose StatementEnd
-
-CREATE TRIGGER outbox_notify
-AFTER INSERT ON outbox
-EXECUTE PROCEDURE outbox_notify();
-
+CREATE INDEX message_id_idx ON deadmessage_event(message_id);
 
 -- +goose Down
-DROP TABLE message_events;
 DROP TABLE messages;
-
-DROP TRIGGER outbox_notify ON outbox;
-DROP FUNCTION outbox_notify;
-DROP TABLE outbox;
+DROP TABLE deadmessage;
