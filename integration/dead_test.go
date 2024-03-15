@@ -101,13 +101,14 @@ func TestShelve(tt *testing.T) {
 				rejected = res.Events[a].Event.GetRejected()
 			}
 		}
-		if rejected == nil {
-			t.Fatal("Couldn't find rejected event")
-		}
 		if created == nil {
 			t.Fatal("Couldn't find created event")
 		}
-		t.Equal("not valid", rejected.Reason)
+		if rejected == nil {
+			t.Fatal("Couldn't find rejected event")
+		} else { // a little silliness to convince the linter it's okay to access the variable
+			t.Equal("not valid", rejected.Reason)
+		}
 	})
 
 }
