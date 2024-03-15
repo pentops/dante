@@ -70,11 +70,44 @@ func TestShelve(tt *testing.T) {
 		resp, err := uu.DeadMessageCommand.RejectDeadMessage(ctx, req)
 		t.NoError(err)
 
-		// verify state
 		t.Equal(dante_pb.MessageStatus_MESSAGE_STATUS_REJECTED, resp.Message.Status)
 
-		// verify events
-		// check state transition too
+		r := &dante_spb.GetDeadMessageRequest{
+			MessageId: &msg.MessageId,
+		}
+
+		res, err := uu.DeadMessageQuery.GetDeadMessage(ctx, r)
+		t.NoError(err)
+
+		if res.Message == nil {
+			t.Fatal("Message is nil")
+		}
+
+		m := res.Message
+		t.Equal(msg.MessageId, m.MessageId)
+		t.Equal(m.Status, dante_pb.MessageStatus_MESSAGE_STATUS_REJECTED)
+
+		if len(res.Events) != 2 {
+			t.Fatal("Too many events")
+		}
+
+		var rejected *dante_pb.DeadMessageEventType_Rejected
+		var created *dante_pb.DeadMessageEventType_Created
+		for a := range res.Events {
+			if res.Events[a].Event.GetCreated() != nil {
+				created = res.Events[a].Event.GetCreated()
+			}
+			if res.Events[a].Event.GetRejected() != nil {
+				rejected = res.Events[a].Event.GetRejected()
+			}
+		}
+		if rejected == nil {
+			t.Fatal("Couldn't find rejected event")
+		}
+		if created == nil {
+			t.Fatal("Couldn't find created event")
+		}
+		t.Equal("not valid", rejected.Reason)
 	})
 
 }
