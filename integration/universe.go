@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/pentops/dante/dynamictype"
 	"github.com/pentops/dante/service"
 	"github.com/pentops/flowtest"
@@ -17,8 +18,19 @@ type Universe struct {
 	DeadMessageQuery   dante_spb.DeadMessageQueryServiceClient
 	DeadMessageWorker  dante_tpb.DeadMessageTopicClient
 	DeadMessageCommand dante_spb.DeadMessageCommandServiceClient
+	FakeSqs            FakeSqs
 
 	*flowtest.Stepper[*testing.T]
+}
+
+type FakeSqs struct {
+	Msgs []sqs.SendMessageInput
+}
+
+func (f *FakeSqs) SendMessage(ctx context.Context, params *sqs.SendMessageInput, optFns ...func(*sqs.Options)) (*sqs.SendMessageOutput, error) {
+	f.Msgs = append(f.Msgs, *params)
+
+	return nil, nil
 }
 
 func NewUniverse(ctx context.Context, t *testing.T) *Universe {
@@ -26,6 +38,7 @@ func NewUniverse(ctx context.Context, t *testing.T) *Universe {
 	stepper := flowtest.NewStepper[*testing.T](name)
 	uu := &Universe{
 		Stepper: stepper,
+		FakeSqs: FakeSqs{},
 	}
 	return uu
 }
@@ -42,7 +55,7 @@ func (uu *Universe) RunSteps(t *testing.T) {
 	topicPair := flowtest.NewGRPCPair(t)
 
 	types := dynamictype.NewTypeRegistry()
-	service, err := service.NewDeadletterServiceService(conn, types, nil, "")
+	service, err := service.NewDeadletterServiceService(conn, types, &uu.FakeSqs, "")
 	if err != nil {
 		t.Fatal(err)
 	}
