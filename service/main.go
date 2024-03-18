@@ -368,8 +368,6 @@ type SlackMessage struct {
 }
 
 func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessage) (*emptypb.Empty, error) {
-	rowInserted := false
-
 	s := dante_pb.DeadMessageSpec{
 		VersionId:      uuid.NewString(),
 		InfraMessageId: req.InfraMessageId,
@@ -433,7 +431,8 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		return nil, err
 	}
 
-	if len(ds.slackUrl) > 0 && rowInserted {
+	// if we got here, no error occurred so we inserted a new dead letter, let slack know
+	if len(ds.slackUrl) > 0 {
 		msg := SlackMessage{}
 		wrapper := `*Deadletter on*:
 %v
