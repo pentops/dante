@@ -2,7 +2,7 @@ version: '2.4'
 
 services:
   database:
-    image: postgres:14.2-alpine
+    image: postgres:14.8-alpine
     environment:
       POSTGRES_USER: test
       POSTGRES_PASSWORD: test
