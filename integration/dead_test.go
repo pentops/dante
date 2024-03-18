@@ -122,7 +122,6 @@ func TestUpdate(tt *testing.T) {
 			t.Equal("new-queue-name", updated.Spec.QueueName)
 		}
 	})
-
 }
 
 func TestShelve(tt *testing.T) {
