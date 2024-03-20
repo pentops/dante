@@ -68,6 +68,7 @@ func TestUpdate(tt *testing.T) {
 			QueueName:      "new-queue-name",
 			GrpcName:       msg.GrpcName,
 			Payload:        msg.Payload,
+			CreatedAt:      timestamppb.Now(),
 		}
 		req := &dante_spb.UpdateDeadMessageRequest{
 			MessageId: msg.MessageId,
