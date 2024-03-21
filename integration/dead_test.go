@@ -312,6 +312,22 @@ func TestFieldPath(tt *testing.T) {
 		}
 	})
 
+	uu.Step("List sorted dead messages", func(t flowtest.Asserter) {
+		req := &dante_spb.ListDeadMessagesRequest{
+			Query: &psml_pb.QueryRequest{
+				Sorts: []*psml_pb.Sort{
+					{Field: "currentSpec.createdAt"},
+				},
+			},
+		}
+
+		resp, err := uu.DeadMessageQuery.ListDeadMessages(ctx, req)
+		t.NoError(err)
+		if len(resp.Messages) != 2 {
+			t.Fatal("Should have exactly two dead letters")
+		}
+	})
+
 	uu.Step("Get a specific dead message", func(t flowtest.Asserter) {
 		req := &dante_spb.GetDeadMessageRequest{
 			MessageId: &msg.MessageId,
