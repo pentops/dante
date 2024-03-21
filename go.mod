@@ -14,7 +14,7 @@ require (
 	github.com/pentops/log.go v0.0.0-20231218074934-67aedcab3fa4
 	github.com/pentops/o5-go v0.0.0-20240318210923-9e96edcd2e31
 	github.com/pentops/pgtest.go v0.0.0-20230712031943-dd86c8524dcb
-	github.com/pentops/protostate v0.0.0-20240315215838-b375646b3871
+	github.com/pentops/protostate v0.0.0-20240321225449-12889c84103f
 	github.com/pentops/sqrlx.go v0.0.0-20240108202916-8687fdf983c0
 	github.com/pressly/goose v2.7.0+incompatible
 	golang.org/x/sync v0.5.0
