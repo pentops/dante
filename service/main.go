@@ -119,7 +119,7 @@ func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_s
 		}
 		res.Message = s
 
-		log.Infof(ctx, "s currentspec is %+v, grpc-message is '%v'", s.CurrentSpec, s.CurrentSpec.Payload.Proto.MessageName())
+		log.Infof(ctx, "s currentspec is %+v, grpc-service is '%v'", s.CurrentSpec, s.CurrentSpec.GrpcName)
 
 		// Direct SQS publish: pull this out into a function
 		hdrs := map[string]types.MessageAttributeValue{
