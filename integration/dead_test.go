@@ -18,6 +18,57 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+func TestReplay(tt *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	uu := NewUniverse(ctx, tt)
+	defer uu.RunSteps(tt)
+
+	msg := &dante_tpb.DeadMessage{
+		MessageId:      uuid.NewString(),
+		InfraMessageId: uuid.NewString(),
+
+		QueueName: "test",
+		GrpcName:  "test.Foo",
+
+		Timestamp: timestamppb.Now(),
+
+		Payload: &dante_pb.Any{
+			Json: string("fake json"),
+		},
+
+		Problem: &dante_pb.Problem{
+			Type: &dante_pb.Problem_UnhandledError{
+				UnhandledError: &dante_pb.UnhandledError{
+					Error: "test error",
+				},
+			},
+		},
+	}
+
+	uu.Step("Create a dead letter", func(t flowtest.Asserter) {
+		_, err := uu.DeadMessageWorker.Dead(ctx, msg)
+		t.NoError(err)
+	})
+
+	// replay it
+	uu.Step("Replay dead letter", func(t flowtest.Asserter) {
+		msgsSent := len(uu.FakeSqs.Msgs)
+		replayReq := &dante_spb.ReplayDeadMessageRequest{
+			MessageId: msg.MessageId,
+		}
+		_, err := uu.DeadMessageCommand.ReplayDeadMessage(ctx, replayReq)
+		t.NoError(err)
+
+		t.Equal(msgsSent+1, len(uu.FakeSqs.Msgs))
+		// assume latest message was ours
+		a := uu.FakeSqs.Msgs[len(uu.FakeSqs.Msgs)-1]
+		t.Equal("application/json", *a.MessageAttributes["Content-Type"].StringValue)
+		t.Equal("test.Foo", *a.MessageAttributes["grpc-service"].StringValue)
+	})
+
+}
+
 func TestUpdate(tt *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
