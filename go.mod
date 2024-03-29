@@ -12,7 +12,7 @@ require (
 	github.com/pentops/flowtest v0.0.0-20231213175137-ac050902e7fb
 	github.com/pentops/jsonapi v0.0.0-20240125182748-28bbbf8f7311
 	github.com/pentops/log.go v0.0.0-20231218074934-67aedcab3fa4
-	github.com/pentops/o5-go v0.0.0-20240318210923-9e96edcd2e31
+	github.com/pentops/o5-go v0.0.0-20240329203128-21a4d7f6dbb6
 	github.com/pentops/pgtest.go v0.0.0-20230712031943-dd86c8524dcb
 	github.com/pentops/protostate v0.0.0-20240329170155-7e53703ba59a
 	github.com/pentops/sqrlx.go v0.0.0-20240108202916-8687fdf983c0
