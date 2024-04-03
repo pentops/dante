@@ -326,17 +326,16 @@ func (ds *DeadletterService) Dead(ctx context.Context, req *dante_tpb.DeadMessag
 		Status:      dante_pb.MessageStatus_CREATED,
 	}
 
+	// While Dante has access to the proto definitions needed to convert the proto to json,
+	// the protostate machine does not and will throw an error when trying to convert to json
+	// to save to the database.
+	// Dump the proto portion of the payload.
+	dms.CurrentSpec.Payload.Proto = nil
+
 	_, err := ds.protojson.Marshal(&dms)
 	if err != nil {
-		log.Infof(ctx, "couldn't turn dead letter into json: %v", err.Error())
-		// rely on the JSON version of the message
-		dms.CurrentSpec.Payload.Proto = nil
-
-		_, err = ds.protojson.Marshal(&dms)
-		if err != nil {
-			log.Infof(ctx, "couldn't turn dead letter into json after removing payload: %v", err.Error())
-			return nil, err
-		}
+		log.Infof(ctx, "couldn't turn dead letter into json after removing payload: %v", err.Error())
+		return nil, err
 	}
 
 	event := dante_pb.DeadMessageEvent{
