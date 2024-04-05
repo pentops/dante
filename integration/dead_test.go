@@ -66,7 +66,6 @@ func TestReplay(tt *testing.T) {
 		t.Equal("application/json", *a.MessageAttributes["Content-Type"].StringValue)
 		t.Equal("test.Foo", *a.MessageAttributes["grpc-service"].StringValue)
 	})
-
 }
 
 func TestUpdate(tt *testing.T) {
@@ -117,9 +116,11 @@ func TestUpdate(tt *testing.T) {
 			VersionId:      uuid.NewString(),
 			InfraMessageId: msg.InfraMessageId,
 			QueueName:      "new-queue-name",
-			GrpcName:       msg.GrpcName,
-			Payload:        msg.Payload,
-			CreatedAt:      timestamppb.Now(),
+			GrpcName:       msg.GrpcName + "EDITED",
+			Payload: &dante_pb.Any{
+				Json: string("EDITED fake json"),
+			},
+			CreatedAt: timestamppb.Now(),
 		}
 		req := &dante_spb.UpdateDeadMessageRequest{
 			MessageId: msg.MessageId,
@@ -174,6 +175,23 @@ func TestUpdate(tt *testing.T) {
 			t.Equal("new-queue-name", updated.Spec.QueueName)
 		}
 	})
+
+	uu.Step("Replay dead letter", func(t flowtest.Asserter) {
+		msgsSent := len(uu.FakeSqs.Msgs)
+		replayReq := &dante_spb.ReplayDeadMessageRequest{
+			MessageId: msg.MessageId,
+		}
+		_, err := uu.DeadMessageCommand.ReplayDeadMessage(ctx, replayReq)
+		t.NoError(err)
+
+		t.Equal(msgsSent+1, len(uu.FakeSqs.Msgs))
+		// assume latest message was ours
+		a := uu.FakeSqs.Msgs[len(uu.FakeSqs.Msgs)-1]
+		t.Equal("application/json", *a.MessageAttributes["Content-Type"].StringValue)
+		t.Equal("test.FooEDITED", *a.MessageAttributes["grpc-service"].StringValue)
+		t.Equal("EDITED fake json", *a.MessageBody)
+	})
+
 }
 
 func TestShelve(tt *testing.T) {
