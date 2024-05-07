@@ -215,9 +215,8 @@ func newPsm() (*dante_pb.DeadmessagePSM, error) {
 	}
 
 	// new message
-	sm.From(dante_pb.MessageStatus_UNSPECIFIED).Do(
-		dante_pb.DeadmessagePSMFunc(func(ctx context.Context,
-			tb dante_pb.DeadmessagePSMTransitionBaton,
+	sm.From(dante_pb.MessageStatus_UNSPECIFIED).Transition(
+		dante_pb.DeadmessagePSMTransition(func(ctx context.Context,
 			state *dante_pb.DeadMessageState,
 			event *dante_pb.DeadMessageEventType_Created) error {
 
@@ -227,9 +226,8 @@ func newPsm() (*dante_pb.DeadmessagePSM, error) {
 		}))
 
 	// created to rejected
-	sm.From(dante_pb.MessageStatus_MESSAGE_STATUS_CREATED).Do(
-		dante_pb.DeadmessagePSMFunc(func(ctx context.Context,
-			tb dante_pb.DeadmessagePSMTransitionBaton,
+	sm.From(dante_pb.MessageStatus_MESSAGE_STATUS_CREATED).Transition(
+		dante_pb.DeadmessagePSMTransition(func(ctx context.Context,
 			state *dante_pb.DeadMessageState,
 			event *dante_pb.DeadMessageEventType_Rejected) error {
 			state.Status = dante_pb.MessageStatus_MESSAGE_STATUS_REJECTED
@@ -239,9 +237,8 @@ func newPsm() (*dante_pb.DeadmessagePSM, error) {
 		}))
 
 	// created to updated
-	sm.From(dante_pb.MessageStatus_MESSAGE_STATUS_CREATED).Do(
-		dante_pb.DeadmessagePSMFunc(func(ctx context.Context,
-			tb dante_pb.DeadmessagePSMTransitionBaton,
+	sm.From(dante_pb.MessageStatus_MESSAGE_STATUS_CREATED).Transition(
+		dante_pb.DeadmessagePSMTransition(func(ctx context.Context,
 			state *dante_pb.DeadMessageState,
 			event *dante_pb.DeadMessageEventType_Updated) error {
 			state.Status = dante_pb.MessageStatus_MESSAGE_STATUS_UPDATED
@@ -251,9 +248,8 @@ func newPsm() (*dante_pb.DeadmessagePSM, error) {
 		}))
 
 	// created to replayed
-	sm.From(dante_pb.MessageStatus_MESSAGE_STATUS_CREATED).Do(
-		dante_pb.DeadmessagePSMFunc(func(ctx context.Context,
-			tb dante_pb.DeadmessagePSMTransitionBaton,
+	sm.From(dante_pb.MessageStatus_MESSAGE_STATUS_CREATED).Transition(
+		dante_pb.DeadmessagePSMTransition(func(ctx context.Context,
 			state *dante_pb.DeadMessageState,
 			event *dante_pb.DeadMessageEventType_Replayed) error {
 			state.Status = dante_pb.MessageStatus_MESSAGE_STATUS_REPLAYED
@@ -262,9 +258,8 @@ func newPsm() (*dante_pb.DeadmessagePSM, error) {
 		}))
 
 	// updated to updated
-	sm.From(dante_pb.MessageStatus_MESSAGE_STATUS_UPDATED).Do(
-		dante_pb.DeadmessagePSMFunc(func(ctx context.Context,
-			tb dante_pb.DeadmessagePSMTransitionBaton,
+	sm.From(dante_pb.MessageStatus_MESSAGE_STATUS_UPDATED).Transition(
+		dante_pb.DeadmessagePSMTransition(func(ctx context.Context,
 			state *dante_pb.DeadMessageState,
 			event *dante_pb.DeadMessageEventType_Updated) error {
 			state.Status = dante_pb.MessageStatus_MESSAGE_STATUS_UPDATED
@@ -274,9 +269,8 @@ func newPsm() (*dante_pb.DeadmessagePSM, error) {
 		}))
 
 	// updated to rejected
-	sm.From(dante_pb.MessageStatus_MESSAGE_STATUS_UPDATED).Do(
-		dante_pb.DeadmessagePSMFunc(func(ctx context.Context,
-			tb dante_pb.DeadmessagePSMTransitionBaton,
+	sm.From(dante_pb.MessageStatus_MESSAGE_STATUS_UPDATED).Transition(
+		dante_pb.DeadmessagePSMTransition(func(ctx context.Context,
 			state *dante_pb.DeadMessageState,
 			event *dante_pb.DeadMessageEventType_Rejected) error {
 			state.Status = dante_pb.MessageStatus_MESSAGE_STATUS_REJECTED
@@ -286,9 +280,8 @@ func newPsm() (*dante_pb.DeadmessagePSM, error) {
 		}))
 
 	// updated to replayed
-	sm.From(dante_pb.MessageStatus_MESSAGE_STATUS_UPDATED).Do(
-		dante_pb.DeadmessagePSMFunc(func(ctx context.Context,
-			tb dante_pb.DeadmessagePSMTransitionBaton,
+	sm.From(dante_pb.MessageStatus_MESSAGE_STATUS_UPDATED).Transition(
+		dante_pb.DeadmessagePSMTransition(func(ctx context.Context,
 			state *dante_pb.DeadMessageState,
 			event *dante_pb.DeadMessageEventType_Replayed) error {
 			state.Status = dante_pb.MessageStatus_MESSAGE_STATUS_REPLAYED
