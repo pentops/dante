@@ -1,0 +1,21 @@
+version: v1
+name: buf.build/pentops/o5-deployer
+
+deps:
+  - buf.build/googleapis/googleapis
+  - buf.build/bufbuild/protovalidate
+  - buf.build/pentops/listify
+  - buf.build/pentops/protostate
+  - buf.build/pentops/j5
+  - buf.build/pentops/o5
+
+lint:
+  use:
+    - DEFAULT
+  except:
+    - PACKAGE_VERSION_SUFFIX # Allow o5.deployer.v1.topic - i.e. sub packages under the same version
+    - RPC_REQUEST_RESPONSE_UNIQUE
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
+    - SERVICE_SUFFIX
+

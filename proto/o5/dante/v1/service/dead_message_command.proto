@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "o5/dante/v1/dead_message.proto";
+import "o5/auth/v1/annotations.proto";
+
+package o5.dante.v1.service;
+
+option go_package = "github.com/pentops/dante/gen/o5/dante/v1/dante_spb";
+
+service DeadMessageCommandService {
+  option (o5.auth.v1.default_auth).none = {};
+  rpc UpdateDeadMessage(UpdateDeadMessageRequest) returns (UpdateDeadMessageResponse) {
+    option (google.api.http) = {
+      post: "/dante/v1/c/messages/{message_id}/update"
+      body: "*"
+    };
+  }
+
+  rpc ReplayDeadMessage(ReplayDeadMessageRequest) returns (ReplayDeadMessageResponse) {
+    option (google.api.http) = {
+      post: "/dante/v1/c/messages/{message_id}/replay"
+      body: "*"
+    };
+  }
+
+  rpc RejectDeadMessage(RejectDeadMessageRequest) returns (RejectDeadMessageResponse) {
+    option (google.api.http) = {
+      post: "/dante/v1/c/messages/{message_id}/shelve"
+      body: "*"
+    };
+  }
+}
+
+message UpdateDeadMessageRequest {
+  string message_id = 1 [
+    (buf.validate.field).string.uuid = true
+  ];
+
+  string replaces_version_id = 2 [(buf.validate.field).string.uuid = true];
+
+  optional string version_id = 3 [(buf.validate.field).string.uuid = true];
+
+  o5.dante.v1.DeadMessageSpec message = 4 [(buf.validate.field).required = true];
+}
+
+message UpdateDeadMessageResponse {
+  o5.dante.v1.DeadMessageState message = 1 [(buf.validate.field).required = true];
+}
+
+message ReplayDeadMessageRequest {
+  string message_id = 1 [
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+message ReplayDeadMessageResponse {
+  o5.dante.v1.DeadMessageState message = 1 [(buf.validate.field).required = true];
+}
+
+message RejectDeadMessageRequest {
+  string message_id = 1 [
+    (buf.validate.field).string.uuid = true
+  ];
+
+  string reason = 2;
+}
+
+message RejectDeadMessageResponse {
+  o5.dante.v1.DeadMessageState message = 1 [(buf.validate.field).required = true];
+}
