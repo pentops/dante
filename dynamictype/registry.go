@@ -59,9 +59,15 @@ func NewTypeRegistry() *TypeRegistry {
 }
 
 func (r *TypeRegistry) FindMessageByName(field protoreflect.FullName) (protoreflect.MessageType, error) {
+	var descriptor protoreflect.MessageDescriptor
 	descriptor, ok := r.messages[string(field)]
+
 	if !ok {
-		return nil, fmt.Errorf("couldn't find message by name: %s", field)
+		td, err := protoregistry.GlobalTypes.FindMessageByName(field)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't find message by name: %s", field)
+		}
+		descriptor = td.Descriptor()
 	}
 
 	msg := dynamicpb.NewMessageType(descriptor)
