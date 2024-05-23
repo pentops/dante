@@ -23,6 +23,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"gopkg.daemonl.com/envconf"
+
+	// Forces the Deployer topic to be in the global registry for later lookup.
+	// This should be replaced with a dynamic lookup when we build one in
+	// pentops
+	_ "github.com/pentops/o5-deploy-aws/gen/o5/deployer/v1/deployer_tpb"
 )
 
 var Version string
@@ -126,11 +131,6 @@ func runServe(ctx context.Context) error {
 
 	types := dynamictype.NewTypeRegistry()
 	err = types.LoadExternalProtobufs(cfg.ProtobufSrc)
-	if err != nil {
-		return err
-	}
-
-	err = types.LoadProtoFromFile("./pentops-o5.binpb")
 	if err != nil {
 		return err
 	}
