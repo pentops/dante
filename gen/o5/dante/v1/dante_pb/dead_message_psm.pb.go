@@ -5,169 +5,48 @@ package dante_pb
 import (
 	context "context"
 	fmt "fmt"
+	psm_pb "github.com/pentops/protostate/gen/state/v1/psm_pb"
 	psm "github.com/pentops/protostate/psm"
 	sqrlx "github.com/pentops/sqrlx.go/sqrlx"
-	proto "google.golang.org/protobuf/proto"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// StateObjectOptions: DeadmessagePSM
+// PSM DeadmessagePSM
+
 type DeadmessagePSM = psm.StateMachine[
-	*DeadMessageState,
-	MessageStatus,
-	*DeadMessageEvent,
-	DeadmessagePSMEvent,
+	*DeadMessageKeys,    // implements psm.IKeyset
+	*DeadMessageState,   // implements psm.IState
+	MessageStatus,       // implements psm.IStatusEnum
+	*DeadMessageData,    // implements psm.IStateData
+	*DeadMessageEvent,   // implements psm.IEvent
+	DeadmessagePSMEvent, // implements psm.IInnerEvent
 ]
 
 type DeadmessagePSMDB = psm.DBStateMachine[
-	*DeadMessageState,
-	MessageStatus,
-	*DeadMessageEvent,
-	DeadmessagePSMEvent,
+	*DeadMessageKeys,    // implements psm.IKeyset
+	*DeadMessageState,   // implements psm.IState
+	MessageStatus,       // implements psm.IStatusEnum
+	*DeadMessageData,    // implements psm.IStateData
+	*DeadMessageEvent,   // implements psm.IEvent
+	DeadmessagePSMEvent, // implements psm.IInnerEvent
 ]
 
 type DeadmessagePSMEventer = psm.Eventer[
-	*DeadMessageState,
-	MessageStatus,
-	*DeadMessageEvent,
-	DeadmessagePSMEvent,
+	*DeadMessageKeys,    // implements psm.IKeyset
+	*DeadMessageState,   // implements psm.IState
+	MessageStatus,       // implements psm.IStatusEnum
+	*DeadMessageData,    // implements psm.IStateData
+	*DeadMessageEvent,   // implements psm.IEvent
+	DeadmessagePSMEvent, // implements psm.IInnerEvent
 ]
 
-func DefaultDeadmessagePSMConfig() *psm.StateMachineConfig[
-	*DeadMessageState,
-	MessageStatus,
-	*DeadMessageEvent,
-	DeadmessagePSMEvent,
-] {
-	return psm.NewStateMachineConfig[
-		*DeadMessageState,
-		MessageStatus,
-		*DeadMessageEvent,
-		DeadmessagePSMEvent,
-	](DeadmessagePSMConverter{}, DefaultDeadmessagePSMTableSpec)
-}
-
-func NewDeadmessagePSM(config *psm.StateMachineConfig[
-	*DeadMessageState,
-	MessageStatus,
-	*DeadMessageEvent,
-	DeadmessagePSMEvent,
-]) (*DeadmessagePSM, error) {
-	return psm.NewStateMachine[
-		*DeadMessageState,
-		MessageStatus,
-		*DeadMessageEvent,
-		DeadmessagePSMEvent,
-	](config)
-}
-
-type DeadmessagePSMTableSpec = psm.PSMTableSpec[
-	*DeadMessageState,
-	MessageStatus,
-	*DeadMessageEvent,
-	DeadmessagePSMEvent,
+type DeadmessagePSMEventSpec = psm.EventSpec[
+	*DeadMessageKeys,    // implements psm.IKeyset
+	*DeadMessageState,   // implements psm.IState
+	MessageStatus,       // implements psm.IStatusEnum
+	*DeadMessageData,    // implements psm.IStateData
+	*DeadMessageEvent,   // implements psm.IEvent
+	DeadmessagePSMEvent, // implements psm.IInnerEvent
 ]
-
-var DefaultDeadmessagePSMTableSpec = DeadmessagePSMTableSpec{
-	State: psm.TableSpec[*DeadMessageState]{
-		TableName:  "deadmessage",
-		DataColumn: "state",
-		StoreExtraColumns: func(state *DeadMessageState) (map[string]interface{}, error) {
-			return map[string]interface{}{}, nil
-		},
-		PKFieldPaths: []string{
-			"message_id",
-		},
-	},
-	Event: psm.TableSpec[*DeadMessageEvent]{
-		TableName:  "deadmessage_event",
-		DataColumn: "data",
-		StoreExtraColumns: func(event *DeadMessageEvent) (map[string]interface{}, error) {
-			metadata := event.Metadata
-			return map[string]interface{}{
-				"id":         metadata.EventId,
-				"timestamp":  metadata.Timestamp,
-				"actor":      metadata.Actor,
-				"message_id": event.MessageId,
-			}, nil
-		},
-		PKFieldPaths: []string{
-			"metadata.event_id",
-		},
-		PK: func(event *DeadMessageEvent) (map[string]interface{}, error) {
-			return map[string]interface{}{
-				"id": event.Metadata.EventId,
-			}, nil
-		},
-	},
-	PrimaryKey: func(event *DeadMessageEvent) (map[string]interface{}, error) {
-		return map[string]interface{}{
-			"message_id": event.MessageId,
-		}, nil
-	},
-}
-
-type DeadmessagePSMTransitionBaton = psm.TransitionBaton[*DeadMessageEvent, DeadmessagePSMEvent]
-type DeadmessagePSMHookBaton = psm.StateHookBaton[*DeadMessageEvent, DeadmessagePSMEvent]
-
-func DeadmessagePSMFunc[SE DeadmessagePSMEvent](cb func(context.Context, DeadmessagePSMTransitionBaton, *DeadMessageState, SE) error) psm.PSMCombinedFunc[
-	*DeadMessageState,
-	MessageStatus,
-	*DeadMessageEvent,
-	DeadmessagePSMEvent,
-	SE,
-] {
-	return psm.PSMCombinedFunc[
-		*DeadMessageState,
-		MessageStatus,
-		*DeadMessageEvent,
-		DeadmessagePSMEvent,
-		SE,
-	](cb)
-}
-func DeadmessagePSMTransition[SE DeadmessagePSMEvent](cb func(context.Context, *DeadMessageState, SE) error) psm.PSMTransitionFunc[
-	*DeadMessageState,
-	MessageStatus,
-	*DeadMessageEvent,
-	DeadmessagePSMEvent,
-	SE,
-] {
-	return psm.PSMTransitionFunc[
-		*DeadMessageState,
-		MessageStatus,
-		*DeadMessageEvent,
-		DeadmessagePSMEvent,
-		SE,
-	](cb)
-}
-func DeadmessagePSMHook[SE DeadmessagePSMEvent](cb func(context.Context, sqrlx.Transaction, DeadmessagePSMHookBaton, *DeadMessageState, SE) error) psm.PSMHookFunc[
-	*DeadMessageState,
-	MessageStatus,
-	*DeadMessageEvent,
-	DeadmessagePSMEvent,
-	SE,
-] {
-	return psm.PSMHookFunc[
-		*DeadMessageState,
-		MessageStatus,
-		*DeadMessageEvent,
-		DeadmessagePSMEvent,
-		SE,
-	](cb)
-}
-func DeadmessagePSMGeneralHook(cb func(context.Context, sqrlx.Transaction, *DeadMessageState, *DeadMessageEvent) error) psm.GeneralStateHook[
-	*DeadMessageState,
-	MessageStatus,
-	*DeadMessageEvent,
-	DeadmessagePSMEvent,
-] {
-	return psm.GeneralStateHook[
-		*DeadMessageState,
-		MessageStatus,
-		*DeadMessageEvent,
-		DeadmessagePSMEvent,
-	](cb)
-}
 
 type DeadmessagePSMEventKey = string
 
@@ -179,45 +58,98 @@ const (
 	DeadmessagePSMEventRejected DeadmessagePSMEventKey = "rejected"
 )
 
-type DeadmessagePSMEvent interface {
-	proto.Message
-	PSMEventKey() DeadmessagePSMEventKey
+// EXTEND DeadMessageKeys with the psm.IKeyset interface
+
+// PSMIsSet is a helper for != nil, which does not work with generic parameters
+func (msg *DeadMessageKeys) PSMIsSet() bool {
+	return msg != nil
 }
 
-type DeadmessagePSMConverter struct{}
-
-func (c DeadmessagePSMConverter) EmptyState(e *DeadMessageEvent) *DeadMessageState {
-	return &DeadMessageState{
-		MessageId: e.MessageId,
-	}
+// PSMFullName returns the full name of state machine with package prefix
+func (msg *DeadMessageKeys) PSMFullName() string {
+	return "o5.dante.v1.deadmessage"
 }
 
-func (c DeadmessagePSMConverter) DeriveChainEvent(e *DeadMessageEvent, systemActor psm.SystemActor, eventKey string) *DeadMessageEvent {
-	metadata := &Metadata{
-		EventId:   systemActor.NewEventID(e.Metadata.EventId, eventKey),
-		Timestamp: timestamppb.Now(),
-	}
-	actorProto := systemActor.ActorProto()
-	refl := metadata.ProtoReflect()
-	refl.Set(refl.Descriptor().Fields().ByName("actor"), actorProto)
-	return &DeadMessageEvent{
-		Metadata:  metadata,
-		MessageId: e.MessageId,
-	}
+// EXTEND DeadMessageState with the psm.IState interface
+
+// PSMIsSet is a helper for != nil, which does not work with generic parameters
+func (msg *DeadMessageState) PSMIsSet() bool {
+	return msg != nil
 }
 
-func (c DeadmessagePSMConverter) CheckStateKeys(s *DeadMessageState, e *DeadMessageEvent) error {
-	if s.MessageId != e.MessageId {
-		return fmt.Errorf("state field 'MessageId' %q does not match event field %q", s.MessageId, e.MessageId)
+func (msg *DeadMessageState) PSMMetadata() *psm_pb.StateMetadata {
+	if msg.Metadata == nil {
+		msg.Metadata = &psm_pb.StateMetadata{}
 	}
-	return nil
+	return msg.Metadata
 }
 
-func (etw *DeadMessageEventType) UnwrapPSMEvent() DeadmessagePSMEvent {
-	if etw == nil {
+func (msg *DeadMessageState) PSMKeys() *DeadMessageKeys {
+	return msg.Keys
+}
+
+func (msg *DeadMessageState) SetStatus(status MessageStatus) {
+	msg.Status = status
+}
+
+func (msg *DeadMessageState) SetPSMKeys(inner *DeadMessageKeys) {
+	msg.Keys = inner
+}
+
+func (msg *DeadMessageState) PSMData() *DeadMessageData {
+	if msg.Data == nil {
+		msg.Data = &DeadMessageData{}
+	}
+	return msg.Data
+}
+
+// EXTEND DeadMessageData with the psm.IStateData interface
+
+// PSMIsSet is a helper for != nil, which does not work with generic parameters
+func (msg *DeadMessageData) PSMIsSet() bool {
+	return msg != nil
+}
+
+// EXTEND DeadMessageEvent with the psm.IEvent interface
+
+// PSMIsSet is a helper for != nil, which does not work with generic parameters
+func (msg *DeadMessageEvent) PSMIsSet() bool {
+	return msg != nil
+}
+
+func (msg *DeadMessageEvent) PSMMetadata() *psm_pb.EventMetadata {
+	if msg.Metadata == nil {
+		msg.Metadata = &psm_pb.EventMetadata{}
+	}
+	return msg.Metadata
+}
+
+func (msg *DeadMessageEvent) PSMKeys() *DeadMessageKeys {
+	return msg.Keys
+}
+
+func (msg *DeadMessageEvent) SetPSMKeys(inner *DeadMessageKeys) {
+	msg.Keys = inner
+}
+
+// PSMEventKey returns the DeadmessagePSMEventPSMEventKey for the event, implementing psm.IEvent
+func (msg *DeadMessageEvent) PSMEventKey() DeadmessagePSMEventKey {
+	tt := msg.UnwrapPSMEvent()
+	if tt == nil {
+		return DeadmessagePSMEventNil
+	}
+	return tt.PSMEventKey()
+}
+
+// UnwrapPSMEvent implements psm.IEvent, returning the inner event message
+func (msg *DeadMessageEvent) UnwrapPSMEvent() DeadmessagePSMEvent {
+	if msg == nil {
 		return nil
 	}
-	switch v := etw.Type.(type) {
+	if msg.Event == nil {
+		return nil
+	}
+	switch v := msg.Event.Type.(type) {
 	case *DeadMessageEventType_Created_:
 		return v.Created
 	case *DeadMessageEventType_Updated_:
@@ -230,52 +162,223 @@ func (etw *DeadMessageEventType) UnwrapPSMEvent() DeadmessagePSMEvent {
 		return nil
 	}
 }
-func (etw *DeadMessageEventType) PSMEventKey() DeadmessagePSMEventKey {
-	tt := etw.UnwrapPSMEvent()
-	if tt == nil {
-		return DeadmessagePSMEventNil
+
+// SetPSMEvent sets the inner event message from a concrete type, implementing psm.IEvent
+func (msg *DeadMessageEvent) SetPSMEvent(inner DeadmessagePSMEvent) error {
+	if msg.Event == nil {
+		msg.Event = &DeadMessageEventType{}
 	}
-	return tt.PSMEventKey()
-}
-func (etw *DeadMessageEventType) SetPSMEvent(inner DeadmessagePSMEvent) {
 	switch v := inner.(type) {
 	case *DeadMessageEventType_Created:
-		etw.Type = &DeadMessageEventType_Created_{Created: v}
+		msg.Event.Type = &DeadMessageEventType_Created_{Created: v}
 	case *DeadMessageEventType_Updated:
-		etw.Type = &DeadMessageEventType_Updated_{Updated: v}
+		msg.Event.Type = &DeadMessageEventType_Updated_{Updated: v}
 	case *DeadMessageEventType_Replayed:
-		etw.Type = &DeadMessageEventType_Replayed_{Replayed: v}
+		msg.Event.Type = &DeadMessageEventType_Replayed_{Replayed: v}
 	case *DeadMessageEventType_Rejected:
-		etw.Type = &DeadMessageEventType_Rejected_{Rejected: v}
+		msg.Event.Type = &DeadMessageEventType_Rejected_{Rejected: v}
 	default:
-		panic("invalid type")
+		return fmt.Errorf("invalid type %T for DeadMessageEventType", v)
 	}
+	return nil
 }
 
-func (ee *DeadMessageEvent) PSMEventKey() DeadmessagePSMEventKey {
-	return ee.Event.PSMEventKey()
+type DeadmessagePSMEvent interface {
+	psm.IInnerEvent
+	PSMEventKey() DeadmessagePSMEventKey
 }
 
-func (ee *DeadMessageEvent) UnwrapPSMEvent() DeadmessagePSMEvent {
-	return ee.Event.UnwrapPSMEvent()
-}
+// EXTEND DeadMessageEventType_Created with the DeadmessagePSMEvent interface
 
-func (ee *DeadMessageEvent) SetPSMEvent(inner DeadmessagePSMEvent) {
-	if ee.Event == nil {
-		ee.Event = &DeadMessageEventType{}
-	}
-	ee.Event.SetPSMEvent(inner)
+// PSMIsSet is a helper for != nil, which does not work with generic parameters
+func (msg *DeadMessageEventType_Created) PSMIsSet() bool {
+	return msg != nil
 }
 
 func (*DeadMessageEventType_Created) PSMEventKey() DeadmessagePSMEventKey {
 	return DeadmessagePSMEventCreated
 }
+
+// EXTEND DeadMessageEventType_Updated with the DeadmessagePSMEvent interface
+
+// PSMIsSet is a helper for != nil, which does not work with generic parameters
+func (msg *DeadMessageEventType_Updated) PSMIsSet() bool {
+	return msg != nil
+}
+
 func (*DeadMessageEventType_Updated) PSMEventKey() DeadmessagePSMEventKey {
 	return DeadmessagePSMEventUpdated
 }
+
+// EXTEND DeadMessageEventType_Replayed with the DeadmessagePSMEvent interface
+
+// PSMIsSet is a helper for != nil, which does not work with generic parameters
+func (msg *DeadMessageEventType_Replayed) PSMIsSet() bool {
+	return msg != nil
+}
+
 func (*DeadMessageEventType_Replayed) PSMEventKey() DeadmessagePSMEventKey {
 	return DeadmessagePSMEventReplayed
 }
+
+// EXTEND DeadMessageEventType_Rejected with the DeadmessagePSMEvent interface
+
+// PSMIsSet is a helper for != nil, which does not work with generic parameters
+func (msg *DeadMessageEventType_Rejected) PSMIsSet() bool {
+	return msg != nil
+}
+
 func (*DeadMessageEventType_Rejected) PSMEventKey() DeadmessagePSMEventKey {
 	return DeadmessagePSMEventRejected
+}
+
+type DeadmessagePSMTableSpec = psm.PSMTableSpec[
+	*DeadMessageKeys,    // implements psm.IKeyset
+	*DeadMessageState,   // implements psm.IState
+	MessageStatus,       // implements psm.IStatusEnum
+	*DeadMessageData,    // implements psm.IStateData
+	*DeadMessageEvent,   // implements psm.IEvent
+	DeadmessagePSMEvent, // implements psm.IInnerEvent
+]
+
+var DefaultDeadmessagePSMTableSpec = DeadmessagePSMTableSpec{
+	State: psm.TableSpec[*DeadMessageState]{
+		TableName:  "deadmessage",
+		DataColumn: "state",
+		StoreExtraColumns: func(state *DeadMessageState) (map[string]interface{}, error) {
+			return map[string]interface{}{}, nil
+		},
+		PKFieldPaths: []string{
+			"keys.message_id",
+		},
+	},
+	Event: psm.TableSpec[*DeadMessageEvent]{
+		TableName:  "deadmessage_event",
+		DataColumn: "data",
+		StoreExtraColumns: func(event *DeadMessageEvent) (map[string]interface{}, error) {
+			metadata := event.Metadata
+			return map[string]interface{}{
+				"id":         metadata.EventId,
+				"timestamp":  metadata.Timestamp,
+				"cause":      metadata.Cause,
+				"sequence":   metadata.Sequence,
+				"message_id": event.Keys.MessageId,
+			}, nil
+		},
+		PKFieldPaths: []string{
+			"metadata.EventId",
+		},
+	},
+	EventPrimaryKey: func(id string, keys *DeadMessageKeys) (map[string]interface{}, error) {
+		return map[string]interface{}{
+			"id": id,
+		}, nil
+	},
+	PrimaryKey: func(keys *DeadMessageKeys) (map[string]interface{}, error) {
+		return map[string]interface{}{
+			"message_id": keys.MessageId,
+		}, nil
+	},
+}
+
+func DefaultDeadmessagePSMConfig() *psm.StateMachineConfig[
+	*DeadMessageKeys,    // implements psm.IKeyset
+	*DeadMessageState,   // implements psm.IState
+	MessageStatus,       // implements psm.IStatusEnum
+	*DeadMessageData,    // implements psm.IStateData
+	*DeadMessageEvent,   // implements psm.IEvent
+	DeadmessagePSMEvent, // implements psm.IInnerEvent
+] {
+	return psm.NewStateMachineConfig[
+		*DeadMessageKeys,    // implements psm.IKeyset
+		*DeadMessageState,   // implements psm.IState
+		MessageStatus,       // implements psm.IStatusEnum
+		*DeadMessageData,    // implements psm.IStateData
+		*DeadMessageEvent,   // implements psm.IEvent
+		DeadmessagePSMEvent, // implements psm.IInnerEvent
+	](DefaultDeadmessagePSMTableSpec)
+}
+
+func NewDeadmessagePSM(config *psm.StateMachineConfig[
+	*DeadMessageKeys,    // implements psm.IKeyset
+	*DeadMessageState,   // implements psm.IState
+	MessageStatus,       // implements psm.IStatusEnum
+	*DeadMessageData,    // implements psm.IStateData
+	*DeadMessageEvent,   // implements psm.IEvent
+	DeadmessagePSMEvent, // implements psm.IInnerEvent
+]) (*DeadmessagePSM, error) {
+	return psm.NewStateMachine[
+		*DeadMessageKeys,    // implements psm.IKeyset
+		*DeadMessageState,   // implements psm.IState
+		MessageStatus,       // implements psm.IStatusEnum
+		*DeadMessageData,    // implements psm.IStateData
+		*DeadMessageEvent,   // implements psm.IEvent
+		DeadmessagePSMEvent, // implements psm.IInnerEvent
+	](config)
+}
+
+func DeadmessagePSMMutation[SE DeadmessagePSMEvent](cb func(*DeadMessageData, SE) error) psm.PSMMutationFunc[
+	*DeadMessageKeys,    // implements psm.IKeyset
+	*DeadMessageState,   // implements psm.IState
+	MessageStatus,       // implements psm.IStatusEnum
+	*DeadMessageData,    // implements psm.IStateData
+	*DeadMessageEvent,   // implements psm.IEvent
+	DeadmessagePSMEvent, // implements psm.IInnerEvent
+	SE,                  // Specific event type for the transition
+] {
+	return psm.PSMMutationFunc[
+		*DeadMessageKeys,    // implements psm.IKeyset
+		*DeadMessageState,   // implements psm.IState
+		MessageStatus,       // implements psm.IStatusEnum
+		*DeadMessageData,    // implements psm.IStateData
+		*DeadMessageEvent,   // implements psm.IEvent
+		DeadmessagePSMEvent, // implements psm.IInnerEvent
+		SE,                  // Specific event type for the transition
+	](cb)
+}
+
+type DeadmessagePSMHookBaton = psm.HookBaton[
+	*DeadMessageKeys,    // implements psm.IKeyset
+	*DeadMessageState,   // implements psm.IState
+	MessageStatus,       // implements psm.IStatusEnum
+	*DeadMessageData,    // implements psm.IStateData
+	*DeadMessageEvent,   // implements psm.IEvent
+	DeadmessagePSMEvent, // implements psm.IInnerEvent
+]
+
+func DeadmessagePSMHook[SE DeadmessagePSMEvent](cb func(context.Context, sqrlx.Transaction, DeadmessagePSMHookBaton, *DeadMessageState, SE) error) psm.PSMHookFunc[
+	*DeadMessageKeys,    // implements psm.IKeyset
+	*DeadMessageState,   // implements psm.IState
+	MessageStatus,       // implements psm.IStatusEnum
+	*DeadMessageData,    // implements psm.IStateData
+	*DeadMessageEvent,   // implements psm.IEvent
+	DeadmessagePSMEvent, // implements psm.IInnerEvent
+	SE,                  // Specific event type for the transition
+] {
+	return psm.PSMHookFunc[
+		*DeadMessageKeys,    // implements psm.IKeyset
+		*DeadMessageState,   // implements psm.IState
+		MessageStatus,       // implements psm.IStatusEnum
+		*DeadMessageData,    // implements psm.IStateData
+		*DeadMessageEvent,   // implements psm.IEvent
+		DeadmessagePSMEvent, // implements psm.IInnerEvent
+		SE,                  // Specific event type for the transition
+	](cb)
+}
+func DeadmessagePSMGeneralHook(cb func(context.Context, sqrlx.Transaction, DeadmessagePSMHookBaton, *DeadMessageState, *DeadMessageEvent) error) psm.GeneralStateHook[
+	*DeadMessageKeys,    // implements psm.IKeyset
+	*DeadMessageState,   // implements psm.IState
+	MessageStatus,       // implements psm.IStatusEnum
+	*DeadMessageData,    // implements psm.IStateData
+	*DeadMessageEvent,   // implements psm.IEvent
+	DeadmessagePSMEvent, // implements psm.IInnerEvent
+] {
+	return psm.GeneralStateHook[
+		*DeadMessageKeys,    // implements psm.IKeyset
+		*DeadMessageState,   // implements psm.IState
+		MessageStatus,       // implements psm.IStatusEnum
+		*DeadMessageData,    // implements psm.IStateData
+		*DeadMessageEvent,   // implements psm.IEvent
+		DeadmessagePSMEvent, // implements psm.IInnerEvent
+	](cb)
 }

@@ -1,14 +1,14 @@
 syntax = "proto3";
 
+package o5.dante.v1.service;
+
 import "buf/validate/validate.proto";
 import "google/api/annotations.proto";
-import "o5/dante/v1/dead_message.proto";
 import "o5/auth/v1/annotations.proto";
+import "o5/dante/v1/dead_message.proto";
 import "psm/list/v1/page.proto";
 import "psm/list/v1/query.proto";
 import "psm/state/v1/annotations.proto";
-
-package o5.dante.v1.service;
 
 option go_package = "github.com/pentops/dante/gen/o5/dante/v1/dante_spb";
 
@@ -17,28 +17,25 @@ service DeadMessageQueryService {
   rpc GetDeadMessage(GetDeadMessageRequest) returns (GetDeadMessageResponse) {
     option (google.api.http) = {get: "/dante/v1/q/message/{message_id}"};
     option (psm.state.v1.state_query_method).get = true;
-    option (psm.state.v1.state_query_method).name = "message";
+    option (psm.state.v1.state_query_method).name = "deadmessage";
   }
 
   rpc ListDeadMessages(ListDeadMessagesRequest) returns (ListDeadMessagesResponse) {
     option (google.api.http) = {get: "/dante/v1/q/messages"};
     option (psm.state.v1.state_query_method).list = true;
-    option (psm.state.v1.state_query_method).name = "message";
+    option (psm.state.v1.state_query_method).name = "deadmessage";
   }
 
   rpc ListDeadMessageEvents(ListDeadMessageEventsRequest) returns (ListDeadMessageEventsResponse) {
     option (google.api.http) = {get: "/dante/v1/q/message/{message_id}/events"};
     option (psm.state.v1.state_query_method).list_events = true;
-    option (psm.state.v1.state_query_method).name = "message";
+    option (psm.state.v1.state_query_method).name = "deadmessage";
   }
 }
 
 message GetDeadMessageRequest {
   // when not set, returns the next unhandled message
-  optional string message_id = 1 [
-    (buf.validate.field).string.uuid = true
-  ];
-
+  optional string message_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 message GetDeadMessageResponse {
@@ -58,9 +55,7 @@ message ListDeadMessagesResponse {
 }
 
 message ListDeadMessageEventsRequest {
-  string message_id = 1 [
-    (buf.validate.field).string.uuid = true
-  ];
+  string message_id = 1 [(buf.validate.field).string.uuid = true];
 
   psm.list.v1.PageRequest page = 100;
   psm.list.v1.QueryRequest query = 101;
