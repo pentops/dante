@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/pentops/o5-go/dante/v1/dante_pb"
-	"github.com/pentops/o5-go/dante/v1/dante_tpb"
+	"github.com/pentops/dante/gen/o5/dante/v1/dante_pb"
+	"github.com/pentops/dante/gen/o5/dante/v1/dante_tpb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/descriptorpb"

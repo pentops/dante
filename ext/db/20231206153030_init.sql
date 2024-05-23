@@ -10,7 +10,8 @@ CREATE TABLE deadmessage_event (
     id UUID PRIMARY KEY,
     message_id UUID REFERENCES deadmessage(message_id) NOT NULL,
     timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
-    actor jsonb NOT NULL,
+    sequence int NOT NULL,
+    cause jsonb NOT NULL,
 	  data jsonb NOT NULL
 );
 

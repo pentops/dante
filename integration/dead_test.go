@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/pentops/dante/gen/o5/dante/v1/dante_pb"
+	"github.com/pentops/dante/gen/o5/dante/v1/dante_spb"
+	"github.com/pentops/dante/gen/o5/dante/v1/dante_tpb"
 	"github.com/pentops/flowtest"
-	"github.com/pentops/jsonapi/prototest"
-	"github.com/pentops/o5-go/dante/v1/dante_pb"
-	"github.com/pentops/o5-go/dante/v1/dante_spb"
-	"github.com/pentops/o5-go/dante/v1/dante_tpb"
+	"github.com/pentops/flowtest/prototest"
 	"github.com/pentops/protostate/gen/list/v1/psml_pb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -123,8 +123,9 @@ func TestUpdate(tt *testing.T) {
 			CreatedAt: timestamppb.Now(),
 		}
 		req := &dante_spb.UpdateDeadMessageRequest{
-			MessageId: msg.MessageId,
-			Message:   &newVersion,
+			MessageId:         msg.MessageId,
+			ReplacesVersionId: msg.MessageId,
+			Message:           &newVersion,
 		}
 
 		resp, err := uu.DeadMessageCommand.UpdateDeadMessage(ctx, req)
@@ -149,7 +150,7 @@ func TestUpdate(tt *testing.T) {
 		}
 
 		m := res.Message
-		t.Equal(msg.MessageId, m.MessageId)
+		t.Equal(msg.MessageId, m.Keys.MessageId)
 		t.Equal(m.Status, dante_pb.MessageStatus_MESSAGE_STATUS_UPDATED)
 
 		if len(res.Events) != 2 {
@@ -260,7 +261,7 @@ func TestShelve(tt *testing.T) {
 		}
 
 		m := res.Message
-		t.Equal(msg.MessageId, m.MessageId)
+		t.Equal(msg.MessageId, m.Keys.MessageId)
 		t.Equal(m.Status, dante_pb.MessageStatus_MESSAGE_STATUS_REJECTED)
 
 		if len(res.Events) != 2 {
@@ -385,7 +386,7 @@ func TestFieldPath(tt *testing.T) {
 		req := &dante_spb.ListDeadMessagesRequest{
 			Query: &psml_pb.QueryRequest{
 				Sorts: []*psml_pb.Sort{
-					{Field: "currentSpec.createdAt"},
+					{Field: "data.currentSpec.createdAt"},
 				},
 			},
 		}
@@ -411,14 +412,14 @@ func TestFieldPath(tt *testing.T) {
 
 		m := resp.Message
 
-		t.Equal(msg.MessageId, m.MessageId)
+		t.Equal(msg.MessageId, m.Keys.MessageId)
 		t.Equal(m.Status, dante_pb.MessageStatus_CREATED)
 
-		if m.CurrentSpec == nil {
+		if m.Data.CurrentSpec == nil {
 			t.Fatal("CurrentSpec is nil")
 		}
 
-		c := m.CurrentSpec
+		c := m.Data.CurrentSpec
 
 		t.Equal(msg.InfraMessageId, c.InfraMessageId)
 		t.Equal(msg.QueueName, c.QueueName)

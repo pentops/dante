@@ -12,11 +12,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	_ "github.com/lib/pq"
 	"github.com/pentops/dante/dynamictype"
+	"github.com/pentops/dante/gen/o5/dante/v1/dante_spb"
+	"github.com/pentops/dante/gen/o5/dante/v1/dante_tpb"
 	"github.com/pentops/dante/service"
-	"github.com/pentops/log.go/grpc_log"
 	"github.com/pentops/log.go/log"
-	"github.com/pentops/o5-go/dante/v1/dante_spb"
-	"github.com/pentops/o5-go/dante/v1/dante_tpb"
 	"github.com/pressly/goose"
 
 	"golang.org/x/sync/errgroup"
@@ -140,7 +139,17 @@ func runServe(ctx context.Context) error {
 		return err
 	}
 
-	deadletterService, err := service.NewDeadletterServiceService(db, types, sqsClient, cfg.SlackUrl)
+	statemachine, err := service.NewDeadmessagePSM()
+	if err != nil {
+		return err
+	}
+
+	deadletterService, err := service.NewDeadletterServiceService(db, statemachine, sqsClient)
+	if err != nil {
+		return err
+	}
+
+	deadletterWorker, err := service.NewDeadLetterWorker(db, types, statemachine, cfg.SlackUrl)
 	if err != nil {
 		return err
 	}
@@ -149,13 +158,11 @@ func runServe(ctx context.Context) error {
 
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
-			grpc_log.UnaryServerInterceptor(log.DefaultContext, log.DefaultTrace, log.DefaultLogger),
-		))
+		grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(service.GRPCMiddleware()...))
 
 		reflection.Register(grpcServer)
 
-		dante_tpb.RegisterDeadMessageTopicServer(grpcServer, deadletterService)
+		dante_tpb.RegisterDeadMessageTopicServer(grpcServer, deadletterWorker)
 		dante_spb.RegisterDeadMessageCommandServiceServer(grpcServer, deadletterService)
 		dante_spb.RegisterDeadMessageQueryServiceServer(grpcServer, deadletterService)
 

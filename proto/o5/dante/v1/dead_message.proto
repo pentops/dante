@@ -8,18 +8,32 @@ import "google/protobuf/timestamp.proto";
 import "o5/auth/v1/actor.proto";
 import "psm/list/v1/annotations.proto";
 import "psm/state/v1/annotations.proto";
+import "psm/state/v1/metadata.proto";
 
 option go_package = "github.com/pentops/dante/gen/o5/dante/v1/dante_pb";
 
-message DeadMessageState {
-  option (psm.state.v1.state).name = "deadmessage";
-  string message_id = 1 [(buf.validate.field).string.uuid = true];
+message DeadMessageKeys {
+  option (psm.state.v1.psm).name = "deadmessage";
+  string message_id = 1 [
+    (psm.state.v1.field).primary_key = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
 
-  MessageStatus status = 2 [(psm.list.v1.field).enum.filtering = {
+message DeadMessageState {
+  psm.state.v1.StateMetadata metadata = 1 [(buf.validate.field).required = true];
+
+  DeadMessageKeys keys = 2 [(buf.validate.field).required = true];
+
+  MessageStatus status = 3 [(psm.list.v1.field).enum.filtering = {
     filterable: true,
     default_filters: ["MESSAGE_STATUS_CREATED"]
   }];
 
+  DeadMessageData data = 4;
+}
+
+message DeadMessageData {
   DeadMessageSpec current_spec = 3;
 }
 
@@ -100,21 +114,11 @@ message Any {
 }
 
 message DeadMessageEvent {
-  option (psm.state.v1.event).name = "deadmessage";
-  Metadata metadata = 1 [
-    (buf.validate.field).required = true,
-    (psm.state.v1.event_field).metadata = true
-  ];
+  psm.state.v1.EventMetadata metadata = 1 [(buf.validate.field).required = true];
 
-  string message_id = 2 [
-    (buf.validate.field).string.uuid = true,
-    (psm.state.v1.event_field).state_key = true
-  ];
+  DeadMessageKeys keys = 2 [(buf.validate.field).required = true];
 
-  DeadMessageEventType event = 3 [
-    (psm.state.v1.event_field).event_type = true,
-    (buf.validate.field).required = true
-  ];
+  DeadMessageEventType event = 3 [(buf.validate.field).required = true];
 }
 
 message DeadMessageEventType {
