@@ -37,7 +37,7 @@ runtimes:
         protocol: ROUTE_PROTOCOL_HTTP
 
     subscriptions:
-      - name: "dead-letter" # Match the name in o5 deployer
+      - name: "/o5.messaging.v1.topic.DeadMessageTopic"
 
     containers:
       - name: main
