@@ -1,11 +1,11 @@
 syntax = "proto3";
 
+package o5.dante.v1.service;
+
 import "buf/validate/validate.proto";
 import "google/api/annotations.proto";
-import "o5/dante/v1/dead_message.proto";
 import "o5/auth/v1/annotations.proto";
-
-package o5.dante.v1.service;
+import "o5/dante/v1/dead_message.proto";
 
 option go_package = "github.com/pentops/dante/gen/o5/dante/v1/dante_spb";
 
@@ -34,15 +34,13 @@ service DeadMessageCommandService {
 }
 
 message UpdateDeadMessageRequest {
-  string message_id = 1 [
-    (buf.validate.field).string.uuid = true
-  ];
+  string message_id = 1 [(buf.validate.field).string.uuid = true];
 
   string replaces_version_id = 2 [(buf.validate.field).string.uuid = true];
 
   optional string version_id = 3 [(buf.validate.field).string.uuid = true];
 
-  o5.dante.v1.DeadMessageSpec message = 4 [(buf.validate.field).required = true];
+  o5.dante.v1.DeadMessageVersion message = 4 [(buf.validate.field).required = true];
 }
 
 message UpdateDeadMessageResponse {
@@ -50,9 +48,7 @@ message UpdateDeadMessageResponse {
 }
 
 message ReplayDeadMessageRequest {
-  string message_id = 1 [
-    (buf.validate.field).string.uuid = true
-  ];
+  string message_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 message ReplayDeadMessageResponse {
@@ -60,9 +56,7 @@ message ReplayDeadMessageResponse {
 }
 
 message RejectDeadMessageRequest {
-  string message_id = 1 [
-    (buf.validate.field).string.uuid = true
-  ];
+  string message_id = 1 [(buf.validate.field).string.uuid = true];
 
   string reason = 2;
 }

@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/pentops/dante/gen/o5/dante/v1/dante_pb"
-	"github.com/pentops/dante/gen/o5/dante/v1/dante_tpb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -22,13 +20,9 @@ func TestDynamicLoad(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dms := &dante_tpb.DeadMessage{
-		Payload: &dante_pb.Any{
-			Proto: &anypb.Any{
-				TypeUrl: "type.googleapis.com/namespace.v1.Foo",
-				Value:   msgBytes,
-			},
-		},
+	msg := &anypb.Any{
+		Value:   msgBytes,
+		TypeUrl: "type.googleapis.com/namespace.v1.Foo",
 	}
 
 	ps := &descriptorpb.FileDescriptorSet{}
@@ -55,24 +49,16 @@ func TestDynamicLoad(t *testing.T) {
 
 	msg_json, err := protojson.MarshalOptions{
 		Resolver: types,
-	}.Marshal(dms)
+	}.Marshal(msg)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("json: %s", string(msg_json))
 
-	content := map[string]interface{}{}
-	if err := json.Unmarshal(msg_json, &content); err != nil {
+	proto := map[string]interface{}{}
+	if err := json.Unmarshal(msg_json, &proto); err != nil {
 		t.Fatal(err)
-	}
-	payload, ok := content["payload"].(map[string]interface{})
-	if !ok {
-		t.Fatal("payload not found")
-	}
-	proto, ok := payload["proto"].(map[string]interface{})
-	if !ok {
-		t.Fatal("proto not found")
 	}
 	type_url, ok := proto["@type"].(string)
 	if !ok {

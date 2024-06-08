@@ -1,0 +1,34 @@
+---
+
+generate:
+  - name: go
+    src: ./proto/
+    out: ./gen/
+    opts:
+      paths: import
+      module: github.com/pentops/dante
+    plugins:
+      - name: go
+      - name: go-grpc
+      - name: go-sugar
+      - name: go-messaging
+      - name: go-psm
+
+plugins:
+  - name: go
+    docker:
+      image: ghcr.io/pentops/protoc-gen-go:v1.32.0
+  - name: go-grpc
+    docker:
+      image: ghcr.io/pentops/protoc-gen-go-grpc:v1.3.0
+  - name: go-sugar
+    docker:
+      image: ghcr.io/pentops/protoc-gen-go-sugar:19495b5f5ac3fd3964a03031396d83f1bc1341ca
+  - name: go-messaging
+    docker:
+      image: ghcr.io/pentops/protoc-gen-go-messaging:9f9694311c7c2ad1d88dd6d0d3d5ece61f3c3e2c
+      env:
+        - PROTOC_GEN_GO_MESSAGING_EXTRA_HEADERS=api-version:$GIT_HASH
+  - name: go-psm
+    docker:
+      image: ghcr.io/pentops/protoc-gen-go-protostate:8daef5060f930ca57a47920ced86ed319710b62a

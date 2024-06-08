@@ -11,11 +11,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/pentops/dante/dynamictype"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_pb"
-	"github.com/pentops/dante/gen/o5/dante/v1/dante_tpb"
+	"github.com/pentops/log.go/log"
+	"github.com/pentops/o5-go/messaging/v1/messaging_tpb"
 	"github.com/pentops/protostate/gen/state/v1/psm_pb"
 	"github.com/pentops/sqrlx.go/sqrlx"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"gopkg.daemonl.com/log"
 )
 
 type DeadLetterWorker struct {
@@ -24,7 +24,7 @@ type DeadLetterWorker struct {
 	slackUrl  string
 	protojson ProtoJSON
 
-	dante_tpb.UnimplementedDeadMessageTopicServer
+	messaging_tpb.UnimplementedDeadMessageTopicServer
 }
 
 func NewDeadLetterWorker(conn sqrlx.Connection, resolver dynamictype.Resolver, stateMachine *dante_pb.DeadmessagePSM, slack string) (*DeadLetterWorker, error) {
@@ -46,27 +46,34 @@ type SlackMessage struct {
 	Text string `json:"text"`
 }
 
-func (ds *DeadLetterWorker) Dead(ctx context.Context, req *dante_tpb.DeadMessage) (*emptypb.Empty, error) {
-	s := dante_pb.DeadMessageSpec{
-		VersionId:      uuid.NewString(),
-		InfraMessageId: req.InfraMessageId,
-		QueueName:      req.QueueName,
-		GrpcName:       req.GrpcName,
-		CreatedAt:      req.Timestamp,
-		Payload:        req.Payload,
-		Problem:        req.GetProblem(),
+func (ds *DeadLetterWorker) Dead(ctx context.Context, req *messaging_tpb.DeadMessage) (*emptypb.Empty, error) {
+
+	notification := &dante_pb.DeadMessageNotification{
+		DeathId:    req.DeathId,
+		HandlerApp: req.HandlerApp,
+		HandlerEnv: req.HandlerEnv,
+		Message:    req.Message,
 	}
 
-	// While Dante has access to the proto definitions needed to convert the proto to json,
-	// the protostate machine does not and will throw an error when trying to convert to json
-	// to save to the database.
-	// Dump the proto portion of the payload.
-	s.Payload.Proto = nil
+	switch pr := req.Problem.Type.(type) {
+	case *messaging_tpb.Problem_UnhandledError_:
+		notification.Problem = &dante_pb.Problem{
+			Type: &dante_pb.Problem_UnhandledError{
+				UnhandledError: &dante_pb.UnhandledError{
+					Error: pr.UnhandledError.Error,
+				},
+			},
+		}
 
-	_, err := ds.protojson.Marshal(&s)
-	if err != nil {
-		log.Infof(ctx, "couldn't turn dead letter into json after removing payload: %v", err.Error())
-		return nil, err
+	default:
+		log.WithField(ctx, "problem", req.Problem).Error("Unknown problem type")
+		notification.Problem = &dante_pb.Problem{
+			Type: &dante_pb.Problem_UnhandledError{
+				UnhandledError: &dante_pb.UnhandledError{
+					Error: "UNKNOWN PROBLEM TYPE",
+				},
+			},
+		}
 	}
 
 	event := &dante_pb.DeadmessagePSMEventSpec{
@@ -75,21 +82,21 @@ func (ds *DeadLetterWorker) Dead(ctx context.Context, req *dante_tpb.DeadMessage
 				ExternalEvent: &psm_pb.ExternalEventCause{
 					SystemName: "Dante",
 					EventName:  "Dead",
-					ExternalId: &req.MessageId,
+					ExternalId: &req.DeathId,
 				},
 			},
 		},
 		Keys: &dante_pb.DeadMessageKeys{
-			MessageId: req.MessageId,
+			MessageId: req.DeathId,
 		},
 		EventID:   uuid.NewString(),
 		Timestamp: time.Now(),
 		Event: &dante_pb.DeadMessageEventType_Created{
-			Spec: &s,
+			Notification: notification,
 		},
 	}
 
-	_, err = ds.sm.Transition(ctx, ds.db, event)
+	_, err := ds.sm.Transition(ctx, ds.db, event)
 	if err != nil {
 		log.WithError(ctx, err).Error("Couldn't save dead letter to database")
 		return nil, err
@@ -98,12 +105,14 @@ func (ds *DeadLetterWorker) Dead(ctx context.Context, req *dante_tpb.DeadMessage
 	// if we got here, no error occurred so we inserted a new dead letter, let slack know
 	if len(ds.slackUrl) > 0 {
 		msg := SlackMessage{}
-		wrapper := `*Deadletter on*:
-%v
-*Error*:
-%v}`
 
-		msg.Text = fmt.Sprintf(wrapper, req.QueueName, req.Problem.String())
+		msg.Text = fmt.Sprintf("*Deadletter on \nEnv: %s App %s\nMethod /%s/%s\n*Error*:\n%s",
+			req.HandlerEnv,
+			req.HandlerApp,
+			req.Message.GrpcService,
+			req.Message.GrpcMethod,
+			req.Problem.String(),
+		)
 		json, err := json.Marshal(msg)
 		if err != nil {
 			log.WithError(ctx, err).Error("Couldn't convert dead letter to slack message")

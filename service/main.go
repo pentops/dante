@@ -3,22 +3,24 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	sq "github.com/elgris/sqrl"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_pb"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_spb"
+	"github.com/pentops/o5-runtime-sidecar/awsmsg"
 	"github.com/pentops/protostate/psm"
 
 	"github.com/pentops/sqrlx.go/sqrlx"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"gopkg.daemonl.com/log"
+	"github.com/pentops/log.go/log"
 )
 
 type ProtoJSON interface {
@@ -31,25 +33,27 @@ type SqsSender interface {
 }
 
 type DeadletterService struct {
-	db        *sqrlx.Wrapper
-	sqsClient SqsSender
+	db             *sqrlx.Wrapper
+	sqsClient      SqsSender
+	sqsQueuePrefix string
 
 	sm              *dante_pb.DeadmessagePSM
-	messageQuerySet dante_spb.MessagePSMQuerySet
+	messageQuerySet dante_spb.DeadmessagePSMQuerySet
 
 	dante_spb.UnimplementedDeadMessageQueryServiceServer
 	dante_spb.UnimplementedDeadMessageCommandServiceServer
 }
 
-func NewDeadletterServiceService(conn sqrlx.Connection, statemachine *dante_pb.DeadmessagePSM, sqsClient SqsSender) (*DeadletterService, error) {
+func NewDeadletterServiceService(conn sqrlx.Connection, statemachine *dante_pb.DeadmessagePSM, sqsClient SqsSender, sqsQueuePrefix string) (*DeadletterService, error) {
 	db, err := sqrlx.New(conn, sq.Dollar)
 	if err != nil {
 		return nil, err
 	}
 
-	b := dante_spb.DefaultMessagePSMQuerySpec(statemachine.StateTableSpec())
-
-	qset, err := dante_spb.NewMessagePSMQuerySet(b, psm.StateQueryOptions{})
+	qset, err := dante_spb.NewDeadmessagePSMQuerySet(
+		dante_spb.DefaultDeadmessagePSMQuerySpec(statemachine.StateTableSpec()),
+		psm.StateQueryOptions{},
+	)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't make new PSM query set: %w", err)
 	}
@@ -59,6 +63,7 @@ func NewDeadletterServiceService(conn sqrlx.Connection, statemachine *dante_pb.D
 		sqsClient:       sqsClient,
 		messageQuerySet: *qset,
 		sm:              statemachine,
+		sqsQueuePrefix:  sqsQueuePrefix,
 	}, nil
 
 }
@@ -115,26 +120,30 @@ func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_s
 		// TODO: This belongs in a hook.
 		s := newState.Data
 
-		log.Infof(ctx, "s currentspec is %+v, grpc-service is '%v'", s.CurrentSpec, s.CurrentSpec.GrpcName)
+		log.Infof(ctx, "s currentspec is %+v, grpc-service is '/%s/%s'", s.CurrentVersion, s.CurrentVersion.Message.GrpcService, s.CurrentVersion.Message.GrpcMethod)
 
-		// Direct SQS publish: pull this out into a function
-		hdrs := map[string]types.MessageAttributeValue{
-			"grpc-service": {
-				DataType:    aws.String("String"),
-				StringValue: aws.String(s.CurrentSpec.GrpcName),
-			},
-			"Content-Type": {
-				DataType:    aws.String("String"),
-				StringValue: aws.String("application/json"),
-			},
+		messageBody, err := protojson.Marshal(s.CurrentVersion.Message)
+		if err != nil {
+			log.Errorf(ctx, "couldn't marshal message body: %v", err.Error())
+			return fmt.Errorf("couldn't marshal message body: %w", err)
 		}
 
+		eventBridgeWrapper := &awsmsg.EventBridgeWrapper{
+			Detail:     messageBody,
+			DetailType: awsmsg.EventBridgeO5MessageDetailType,
+		}
+
+		jsonData, err := json.Marshal(eventBridgeWrapper)
+		if err != nil {
+			log.Errorf(ctx, "couldn't marshal eventbridge wrapper: %v", err.Error())
+		}
+
+		queueURL := fmt.Sprintf("%s%s-%s", ds.sqsQueuePrefix, s.Notification.HandlerEnv, s.Notification.HandlerApp)
 		i := sqs.SendMessageInput{
-			MessageBody:       &s.CurrentSpec.Payload.Json,
-			QueueUrl:          &s.CurrentSpec.QueueName,
-			MessageAttributes: hdrs,
+			MessageBody: aws.String(string(jsonData)),
+			QueueUrl:    &queueURL,
 		}
-		log.Infof(ctx, "SQS message to be sent: %+v with body of %v and headers %+v", i, *i.MessageBody, hdrs)
+		log.Infof(ctx, "SQS message to be sent: %+v with body of %v", i, *i.MessageBody)
 		_, err = ds.sqsClient.SendMessage(ctx, &i)
 		if err != nil {
 			log.Errorf(ctx, "couldn't send SQS message for replay: %v", err.Error())

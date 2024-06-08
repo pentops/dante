@@ -13,20 +13,20 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/pentops/dante/dynamictype"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_spb"
-	"github.com/pentops/dante/gen/o5/dante/v1/dante_tpb"
 	"github.com/pentops/dante/service"
 	"github.com/pentops/log.go/log"
+	"github.com/pentops/o5-go/messaging/v1/messaging_tpb"
 	"github.com/pressly/goose"
 
+	"github.com/pentops/envconf.go/envconf"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"gopkg.daemonl.com/envconf"
 
 	// Forces the Deployer topic to be in the global registry for later lookup.
 	// This should be replaced with a dynamic lookup when we build one in
 	// pentops
-	_ "github.com/pentops/o5-deploy-aws/gen/o5/deployer/v1/deployer_tpb"
+	_ "github.com/pentops/o5-deploy-aws/gen/o5/awsinfra/v1/awsinfra_tpb"
 )
 
 var Version string
@@ -115,6 +115,7 @@ func runServe(ctx context.Context) error {
 		PublicPort  int    `env:"PUBLIC_PORT" default:"8080"`
 		ProtobufSrc string `env:"PROTOBUF_SRC" default:""`
 		SlackUrl    string `env:"SLACK_URL" default:""`
+		QueuePrefix string `env:"QUEUE_PREFIX"`
 	}
 	cfg := envConfig{}
 	if err := envconf.Parse(&cfg); err != nil {
@@ -144,7 +145,7 @@ func runServe(ctx context.Context) error {
 		return err
 	}
 
-	deadletterService, err := service.NewDeadletterServiceService(db, statemachine, sqsClient)
+	deadletterService, err := service.NewDeadletterServiceService(db, statemachine, sqsClient, cfg.QueuePrefix)
 	if err != nil {
 		return err
 	}
@@ -162,7 +163,7 @@ func runServe(ctx context.Context) error {
 
 		reflection.Register(grpcServer)
 
-		dante_tpb.RegisterDeadMessageTopicServer(grpcServer, deadletterWorker)
+		messaging_tpb.RegisterDeadMessageTopicServer(grpcServer, deadletterWorker)
 		dante_spb.RegisterDeadMessageCommandServiceServer(grpcServer, deadletterService)
 		dante_spb.RegisterDeadMessageQueryServiceServer(grpcServer, deadletterService)
 

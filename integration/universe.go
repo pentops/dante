@@ -7,16 +7,16 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/pentops/dante/dynamictype"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_spb"
-	"github.com/pentops/dante/gen/o5/dante/v1/dante_tpb"
 	"github.com/pentops/dante/service"
 	"github.com/pentops/flowtest"
 	"github.com/pentops/log.go/log"
+	"github.com/pentops/o5-go/messaging/v1/messaging_tpb"
 	"github.com/pentops/pgtest.go/pgtest"
 )
 
 type Universe struct {
 	DeadMessageQuery   dante_spb.DeadMessageQueryServiceClient
-	DeadMessageWorker  dante_tpb.DeadMessageTopicClient
+	DeadMessageWorker  messaging_tpb.DeadMessageTopicClient
 	DeadMessageCommand dante_spb.DeadMessageCommandServiceClient
 	FakeSqs            FakeSqs
 
@@ -49,7 +49,7 @@ func (uu *Universe) RunSteps(t *testing.T) {
 	ctx := context.Background()
 	conn := pgtest.GetTestDB(t, pgtest.WithDir("../ext/db"))
 
-	log.DefaultLogger = log.NewCallbackLogger(uu.Stepper.Log)
+	log.DefaultLogger = log.NewCallbackLogger(uu.Stepper.LevelLog)
 
 	grpcPair := flowtest.NewGRPCPair(t, service.GRPCMiddleware()...)
 	topicPair := flowtest.NewGRPCPair(t, service.GRPCMiddleware()...)
@@ -66,7 +66,7 @@ func (uu *Universe) RunSteps(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	service, err := service.NewDeadletterServiceService(conn, q, &uu.FakeSqs)
+	service, err := service.NewDeadletterServiceService(conn, q, &uu.FakeSqs, "https://queue-prefix/")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,8 +77,8 @@ func (uu *Universe) RunSteps(t *testing.T) {
 	dante_spb.RegisterDeadMessageCommandServiceServer(grpcPair.Server, service)
 	uu.DeadMessageCommand = dante_spb.NewDeadMessageCommandServiceClient(grpcPair.Client)
 
-	dante_tpb.RegisterDeadMessageTopicServer(topicPair.Server, worker)
-	uu.DeadMessageWorker = dante_tpb.NewDeadMessageTopicClient(topicPair.Client)
+	messaging_tpb.RegisterDeadMessageTopicServer(topicPair.Server, worker)
+	uu.DeadMessageWorker = messaging_tpb.NewDeadMessageTopicClient(topicPair.Client)
 
 	grpcPair.ServeUntilDone(t, ctx)
 	topicPair.ServeUntilDone(t, ctx)
