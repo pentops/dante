@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	sq "github.com/elgris/sqrl"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -17,10 +18,10 @@ import (
 	"github.com/pentops/o5-runtime-sidecar/awsmsg"
 	"github.com/pentops/protostate/psm"
 
+	"github.com/pentops/log.go/log"
 	"github.com/pentops/sqrlx.go/sqrlx"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"github.com/pentops/log.go/log"
 )
 
 type ProtoJSON interface {
@@ -33,9 +34,8 @@ type SqsSender interface {
 }
 
 type DeadletterService struct {
-	db             *sqrlx.Wrapper
-	sqsClient      SqsSender
-	sqsQueuePrefix string
+	db        *sqrlx.Wrapper
+	sqsClient SqsSender
 
 	sm              *dante_pb.DeadmessagePSM
 	messageQuerySet dante_spb.DeadmessagePSMQuerySet
@@ -44,7 +44,7 @@ type DeadletterService struct {
 	dante_spb.UnimplementedDeadMessageCommandServiceServer
 }
 
-func NewDeadletterServiceService(conn sqrlx.Connection, statemachine *dante_pb.DeadmessagePSM, sqsClient SqsSender, sqsQueuePrefix string) (*DeadletterService, error) {
+func NewDeadletterServiceService(conn sqrlx.Connection, statemachine *dante_pb.DeadmessagePSM, sqsClient SqsSender) (*DeadletterService, error) {
 	db, err := sqrlx.New(conn, sq.Dollar)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,6 @@ func NewDeadletterServiceService(conn sqrlx.Connection, statemachine *dante_pb.D
 		sqsClient:       sqsClient,
 		messageQuerySet: *qset,
 		sm:              statemachine,
-		sqsQueuePrefix:  sqsQueuePrefix,
 	}, nil
 
 }
@@ -117,7 +116,8 @@ func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_s
 		}
 		res.Message = newState
 
-		// TODO: This belongs in a hook.
+		// TODO: The remainder of this belongs in a hook -> outbox -> worker
+
 		s := newState.Data
 
 		log.Infof(ctx, "s currentspec is %+v, grpc-service is '/%s/%s'", s.CurrentVersion, s.CurrentVersion.Message.GrpcService, s.CurrentVersion.Message.GrpcMethod)
@@ -138,10 +138,18 @@ func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_s
 			log.Errorf(ctx, "couldn't marshal eventbridge wrapper: %v", err.Error())
 		}
 
-		queueURL := fmt.Sprintf("%s%s-%s", ds.sqsQueuePrefix, s.Notification.HandlerEnv, s.Notification.HandlerApp)
+		attributes := map[string]types.MessageAttributeValue{}
+		for k, v := range s.CurrentVersion.SqsMessage.Attributes {
+			attributes[k] = types.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(v),
+			}
+		}
+
 		i := sqs.SendMessageInput{
-			MessageBody: aws.String(string(jsonData)),
-			QueueUrl:    &queueURL,
+			MessageBody:       aws.String(string(jsonData)),
+			QueueUrl:          aws.String(s.CurrentVersion.SqsMessage.QueueUrl),
+			MessageAttributes: attributes,
 		}
 		log.Infof(ctx, "SQS message to be sent: %+v with body of %v", i, *i.MessageBody)
 		_, err = ds.sqsClient.SendMessage(ctx, &i)

@@ -39,6 +39,14 @@ func TestReplay(tt *testing.T) {
 				Encoding: messaging_pb.WireEncoding_PROTOJSON,
 			},
 		},
+		Infra: &messaging_tpb.Infra{
+			Type: "SQS",
+			Metadata: map[string]string{
+				"queueUrl": "https://test/Queue",
+				"ignore":   "me",
+				"attr:foo": "bar",
+			},
+		},
 
 		Problem: &messaging_tpb.Problem{
 			Type: &messaging_tpb.Problem_UnhandledError_{
@@ -66,6 +74,11 @@ func TestReplay(tt *testing.T) {
 		t.Equal(msgsSent+1, len(uu.FakeSqs.Msgs))
 		// assume latest message was ours
 		a := uu.FakeSqs.Msgs[len(uu.FakeSqs.Msgs)-1]
+		t.Equal("https://test/Queue", *a.QueueUrl)
+		t.Equal("bar", *a.MessageAttributes["foo"].StringValue)
+		_, hasIgnore := a.MessageAttributes["ignore"]
+		t.Equal(false, hasIgnore)
+
 		msg := decodeMessage(t, a.MessageBody)
 		t.Equal("test.Foo", msg.GrpcService)
 	})
@@ -151,6 +164,9 @@ func TestUpdate(tt *testing.T) {
 					Encoding: messaging_pb.WireEncoding_PROTOJSON,
 				},
 			},
+			SqsMessage: &dante_pb.DeadMessageVersion_SQSMessage{
+				QueueUrl: "https://test/NewQueue",
+			},
 		}
 		req := &dante_spb.UpdateDeadMessageRequest{
 			MessageId:         msg.DeathId,
@@ -188,10 +204,10 @@ func TestUpdate(tt *testing.T) {
 		}
 
 		var updated *dante_pb.DeadMessageEventType_Updated
-		var created *dante_pb.DeadMessageEventType_Created
+		var created *dante_pb.DeadMessageEventType_Notified
 		for a := range res.Events {
-			if res.Events[a].Event.GetCreated() != nil {
-				created = res.Events[a].Event.GetCreated()
+			if res.Events[a].Event.GetNotified() != nil {
+				created = res.Events[a].Event.GetNotified()
 			}
 			if res.Events[a].Event.GetUpdated() != nil {
 				updated = res.Events[a].Event.GetUpdated()
@@ -222,6 +238,7 @@ func TestUpdate(tt *testing.T) {
 		t.Equal("test.Foo", msg.GrpcService)
 		t.Equal("NewMethod", msg.GrpcMethod)
 		t.Equal(`{"new": "json"}`, string(msg.Body.Value))
+		t.Equal("https://test/NewQueue", *a.QueueUrl)
 	})
 
 }
@@ -302,10 +319,10 @@ func TestShelve(tt *testing.T) {
 		}
 
 		var rejected *dante_pb.DeadMessageEventType_Rejected
-		var created *dante_pb.DeadMessageEventType_Created
+		var created *dante_pb.DeadMessageEventType_Notified
 		for a := range res.Events {
-			if res.Events[a].Event.GetCreated() != nil {
-				created = res.Events[a].Event.GetCreated()
+			if res.Events[a].Event.GetNotified() != nil {
+				created = res.Events[a].Event.GetNotified()
 			}
 			if res.Events[a].Event.GetRejected() != nil {
 				rejected = res.Events[a].Event.GetRejected()

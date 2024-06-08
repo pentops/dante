@@ -54,7 +54,7 @@ type DeadmessagePSMEventKey = string
 
 const (
 	DeadmessagePSMEventNil      DeadmessagePSMEventKey = "<nil>"
-	DeadmessagePSMEventCreated  DeadmessagePSMEventKey = "created"
+	DeadmessagePSMEventNotified DeadmessagePSMEventKey = "notified"
 	DeadmessagePSMEventUpdated  DeadmessagePSMEventKey = "updated"
 	DeadmessagePSMEventReplayed DeadmessagePSMEventKey = "replayed"
 	DeadmessagePSMEventRejected DeadmessagePSMEventKey = "rejected"
@@ -152,8 +152,8 @@ func (msg *DeadMessageEvent) UnwrapPSMEvent() DeadmessagePSMEvent {
 		return nil
 	}
 	switch v := msg.Event.Type.(type) {
-	case *DeadMessageEventType_Created_:
-		return v.Created
+	case *DeadMessageEventType_Notified_:
+		return v.Notified
 	case *DeadMessageEventType_Updated_:
 		return v.Updated
 	case *DeadMessageEventType_Replayed_:
@@ -171,8 +171,8 @@ func (msg *DeadMessageEvent) SetPSMEvent(inner DeadmessagePSMEvent) error {
 		msg.Event = &DeadMessageEventType{}
 	}
 	switch v := inner.(type) {
-	case *DeadMessageEventType_Created:
-		msg.Event.Type = &DeadMessageEventType_Created_{Created: v}
+	case *DeadMessageEventType_Notified:
+		msg.Event.Type = &DeadMessageEventType_Notified_{Notified: v}
 	case *DeadMessageEventType_Updated:
 		msg.Event.Type = &DeadMessageEventType_Updated_{Updated: v}
 	case *DeadMessageEventType_Replayed:
@@ -190,15 +190,15 @@ type DeadmessagePSMEvent interface {
 	PSMEventKey() DeadmessagePSMEventKey
 }
 
-// EXTEND DeadMessageEventType_Created with the DeadmessagePSMEvent interface
+// EXTEND DeadMessageEventType_Notified with the DeadmessagePSMEvent interface
 
 // PSMIsSet is a helper for != nil, which does not work with generic parameters
-func (msg *DeadMessageEventType_Created) PSMIsSet() bool {
+func (msg *DeadMessageEventType_Notified) PSMIsSet() bool {
 	return msg != nil
 }
 
-func (*DeadMessageEventType_Created) PSMEventKey() DeadmessagePSMEventKey {
-	return DeadmessagePSMEventCreated
+func (*DeadMessageEventType_Notified) PSMEventKey() DeadmessagePSMEventKey {
+	return DeadmessagePSMEventNotified
 }
 
 // EXTEND DeadMessageEventType_Updated with the DeadmessagePSMEvent interface

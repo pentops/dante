@@ -115,7 +115,6 @@ func runServe(ctx context.Context) error {
 		PublicPort  int    `env:"PUBLIC_PORT" default:"8080"`
 		ProtobufSrc string `env:"PROTOBUF_SRC" default:""`
 		SlackUrl    string `env:"SLACK_URL" default:""`
-		QueuePrefix string `env:"QUEUE_PREFIX"`
 	}
 	cfg := envConfig{}
 	if err := envconf.Parse(&cfg); err != nil {
@@ -145,7 +144,7 @@ func runServe(ctx context.Context) error {
 		return err
 	}
 
-	deadletterService, err := service.NewDeadletterServiceService(db, statemachine, sqsClient, cfg.QueuePrefix)
+	deadletterService, err := service.NewDeadletterServiceService(db, statemachine, sqsClient)
 	if err != nil {
 		return err
 	}

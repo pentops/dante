@@ -7,13 +7,11 @@ import (
 	fmt "fmt"
 )
 
-type IsProblem_Type = isProblem_Type
-
 // DeadMessageEventType is a oneof wrapper
 type DeadMessageEventTypeKey string
 
 const (
-	DeadMessageEvent_Created  DeadMessageEventTypeKey = "created"
+	DeadMessageEvent_Notified DeadMessageEventTypeKey = "notified"
 	DeadMessageEvent_Updated  DeadMessageEventTypeKey = "updated"
 	DeadMessageEvent_Replayed DeadMessageEventTypeKey = "replayed"
 	DeadMessageEvent_Rejected DeadMessageEventTypeKey = "rejected"
@@ -21,8 +19,8 @@ const (
 
 func (x *DeadMessageEventType) TypeKey() (DeadMessageEventTypeKey, bool) {
 	switch x.Type.(type) {
-	case *DeadMessageEventType_Created_:
-		return DeadMessageEvent_Created, true
+	case *DeadMessageEventType_Notified_:
+		return DeadMessageEvent_Notified, true
 	case *DeadMessageEventType_Updated_:
 		return DeadMessageEvent_Updated, true
 	case *DeadMessageEventType_Replayed_:
@@ -40,8 +38,8 @@ type IsDeadMessageEventTypeWrappedType interface {
 
 func (x *DeadMessageEventType) Set(val IsDeadMessageEventTypeWrappedType) {
 	switch v := val.(type) {
-	case *DeadMessageEventType_Created:
-		x.Type = &DeadMessageEventType_Created_{Created: v}
+	case *DeadMessageEventType_Notified:
+		x.Type = &DeadMessageEventType_Notified_{Notified: v}
 	case *DeadMessageEventType_Updated:
 		x.Type = &DeadMessageEventType_Updated_{Updated: v}
 	case *DeadMessageEventType_Replayed:
@@ -52,8 +50,8 @@ func (x *DeadMessageEventType) Set(val IsDeadMessageEventTypeWrappedType) {
 }
 func (x *DeadMessageEventType) Get() IsDeadMessageEventTypeWrappedType {
 	switch v := x.Type.(type) {
-	case *DeadMessageEventType_Created_:
-		return v.Created
+	case *DeadMessageEventType_Notified_:
+		return v.Notified
 	case *DeadMessageEventType_Updated_:
 		return v.Updated
 	case *DeadMessageEventType_Replayed_:
@@ -64,8 +62,8 @@ func (x *DeadMessageEventType) Get() IsDeadMessageEventTypeWrappedType {
 		return nil
 	}
 }
-func (x *DeadMessageEventType_Created) TypeKey() DeadMessageEventTypeKey {
-	return DeadMessageEvent_Created
+func (x *DeadMessageEventType_Notified) TypeKey() DeadMessageEventTypeKey {
+	return DeadMessageEvent_Notified
 }
 func (x *DeadMessageEventType_Updated) TypeKey() DeadMessageEventTypeKey {
 	return DeadMessageEvent_Updated

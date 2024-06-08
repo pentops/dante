@@ -66,7 +66,7 @@ func (uu *Universe) RunSteps(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	service, err := service.NewDeadletterServiceService(conn, q, &uu.FakeSqs, "https://queue-prefix/")
+	service, err := service.NewDeadletterServiceService(conn, q, &uu.FakeSqs)
 	if err != nil {
 		t.Fatal(err)
 	}

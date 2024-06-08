@@ -48,34 +48,6 @@ type SlackMessage struct {
 
 func (ds *DeadLetterWorker) Dead(ctx context.Context, req *messaging_tpb.DeadMessage) (*emptypb.Empty, error) {
 
-	notification := &dante_pb.DeadMessageNotification{
-		DeathId:    req.DeathId,
-		HandlerApp: req.HandlerApp,
-		HandlerEnv: req.HandlerEnv,
-		Message:    req.Message,
-	}
-
-	switch pr := req.Problem.Type.(type) {
-	case *messaging_tpb.Problem_UnhandledError_:
-		notification.Problem = &dante_pb.Problem{
-			Type: &dante_pb.Problem_UnhandledError{
-				UnhandledError: &dante_pb.UnhandledError{
-					Error: pr.UnhandledError.Error,
-				},
-			},
-		}
-
-	default:
-		log.WithField(ctx, "problem", req.Problem).Error("Unknown problem type")
-		notification.Problem = &dante_pb.Problem{
-			Type: &dante_pb.Problem_UnhandledError{
-				UnhandledError: &dante_pb.UnhandledError{
-					Error: "UNKNOWN PROBLEM TYPE",
-				},
-			},
-		}
-	}
-
 	event := &dante_pb.DeadmessagePSMEventSpec{
 		Cause: &psm_pb.Cause{
 			Type: &psm_pb.Cause_ExternalEvent{
@@ -91,8 +63,8 @@ func (ds *DeadLetterWorker) Dead(ctx context.Context, req *messaging_tpb.DeadMes
 		},
 		EventID:   uuid.NewString(),
 		Timestamp: time.Now(),
-		Event: &dante_pb.DeadMessageEventType_Created{
-			Notification: notification,
+		Event: &dante_pb.DeadMessageEventType_Notified{
+			Notification: req,
 		},
 	}
 
