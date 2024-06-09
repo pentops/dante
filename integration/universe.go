@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/pentops/dante/dynamictype"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_spb"
 	"github.com/pentops/dante/service"
 	"github.com/pentops/flowtest"
@@ -59,9 +58,7 @@ func (uu *Universe) RunSteps(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	types := dynamictype.NewTypeRegistry()
-
-	worker, err := service.NewDeadLetterWorker(conn, types, q, "")
+	worker, err := service.NewDeadLetterWorker(conn, q, "")
 	if err != nil {
 		t.Fatal(err)
 	}

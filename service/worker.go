@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pentops/dante/dynamictype"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_pb"
 	"github.com/pentops/log.go/log"
 	"github.com/pentops/o5-go/messaging/v1/messaging_tpb"
@@ -19,25 +18,23 @@ import (
 )
 
 type DeadLetterWorker struct {
-	db        *sqrlx.Wrapper
-	sm        *dante_pb.DeadmessagePSM
-	slackUrl  string
-	protojson ProtoJSON
+	db       *sqrlx.Wrapper
+	sm       *dante_pb.DeadmessagePSM
+	slackUrl string
 
 	messaging_tpb.UnimplementedDeadMessageTopicServer
 }
 
-func NewDeadLetterWorker(conn sqrlx.Connection, resolver dynamictype.Resolver, stateMachine *dante_pb.DeadmessagePSM, slack string) (*DeadLetterWorker, error) {
+func NewDeadLetterWorker(conn sqrlx.Connection, stateMachine *dante_pb.DeadmessagePSM, slack string) (*DeadLetterWorker, error) {
 	db, err := sqrlx.New(conn, sqrlx.Dollar)
 	if err != nil {
 		return nil, err
 	}
 
 	return &DeadLetterWorker{
-		db:        db,
-		sm:        stateMachine,
-		slackUrl:  slack,
-		protojson: dynamictype.NewProtoJSON(resolver),
+		db:       db,
+		sm:       stateMachine,
+		slackUrl: slack,
 	}, nil
 
 }

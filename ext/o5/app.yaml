@@ -52,10 +52,6 @@ runtimes:
               databaseName: main
           - name: PUBLIC_PORT
             value: "8080"
-          - name: PROTOBUF_SRC
-            secret:
-              secretName: protobufsrc
-              jsonKey: protobufuri
           - name: SLACK_URL
             secret:
               secretName: slack

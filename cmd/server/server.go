@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	_ "github.com/lib/pq"
-	"github.com/pentops/dante/dynamictype"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_spb"
 	"github.com/pentops/dante/service"
 	"github.com/pentops/log.go/log"
@@ -112,9 +111,8 @@ func openDatabase(ctx context.Context) (*sql.DB, error) {
 
 func runServe(ctx context.Context) error {
 	type envConfig struct {
-		PublicPort  int    `env:"PUBLIC_PORT" default:"8080"`
-		ProtobufSrc string `env:"PROTOBUF_SRC" default:""`
-		SlackUrl    string `env:"SLACK_URL" default:""`
+		PublicPort int    `env:"PUBLIC_PORT" default:"8080"`
+		SlackUrl   string `env:"SLACK_URL" default:""`
 	}
 	cfg := envConfig{}
 	if err := envconf.Parse(&cfg); err != nil {
@@ -127,12 +125,6 @@ func runServe(ctx context.Context) error {
 	}
 
 	sqsClient = sqs.NewFromConfig(awsConfig)
-
-	types := dynamictype.NewTypeRegistry()
-	err = types.LoadExternalProtobufs(cfg.ProtobufSrc)
-	if err != nil {
-		return err
-	}
 
 	db, err := openDatabase(ctx)
 	if err != nil {
@@ -149,7 +141,7 @@ func runServe(ctx context.Context) error {
 		return err
 	}
 
-	deadletterWorker, err := service.NewDeadLetterWorker(db, types, statemachine, cfg.SlackUrl)
+	deadletterWorker, err := service.NewDeadLetterWorker(db, statemachine, cfg.SlackUrl)
 	if err != nil {
 		return err
 	}
