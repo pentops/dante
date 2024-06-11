@@ -21,11 +21,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-
-	// Forces the Deployer topic to be in the global registry for later lookup.
-	// This should be replaced with a dynamic lookup when we build one in
-	// pentops
-	_ "github.com/pentops/o5-deploy-aws/gen/o5/awsinfra/v1/awsinfra_tpb"
 )
 
 var Version string

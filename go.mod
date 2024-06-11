@@ -14,15 +14,14 @@ require (
 	github.com/pentops/flowtest v0.0.0-20240607020132-7dda31076e79
 	github.com/pentops/go-grpc-helpers v0.0.0-20230815045451-2524ee695ebb
 	github.com/pentops/log.go v0.0.0-20240523172444-85c9292a83db
-	github.com/pentops/o5-deploy-aws v0.0.0-20240606183534-306b767725bd
-	github.com/pentops/o5-go v0.0.0-20240607144529-76a7ffd8ae8b
+	github.com/pentops/o5-go v0.0.0-20240610223907-ad5d22e3975f
 	github.com/pentops/o5-runtime-sidecar v0.0.0-20240607150004-4244dc6a6856
 	github.com/pentops/pgtest.go v0.0.0-20240604005819-2035f4562734
-	github.com/pentops/protostate v0.0.0-20240606062858-6ae7d31667ac
+	github.com/pentops/protostate v0.0.0-20240610211526-361e6c3ed773
 	github.com/pentops/sqrlx.go v0.0.0-20240523172712-b615a994d8c0
 	github.com/pressly/goose v2.7.0+incompatible
 	golang.org/x/sync v0.7.0
-	google.golang.org/genproto/googleapis/api v0.0.0-20240604185151-ef581f913117
+	google.golang.org/genproto/googleapis/api v0.0.0-20240610135401-a8a62080eff3
 	google.golang.org/grpc v1.64.0
 	google.golang.org/protobuf v1.34.2-0.20240529085009-ca837e5c658b
 )
@@ -49,13 +48,12 @@ require (
 	github.com/google/cel-go v0.20.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/jhump/protoreflect v1.16.0 // indirect
-	github.com/pentops/j5 v0.0.0-20240606040938-7f6c198fdc0d // indirect
-	github.com/pentops/outbox.pg.go v0.0.0-20240606184926-7c7f6ceaabbf // indirect
+	github.com/pentops/o5-messaging.go v0.0.0-20240610220232-02f44a1806f1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
 	golang.org/x/exp v0.0.0-20240604190554-fc45aab8b7f8 // indirect
 	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/sys v0.21.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240604185151-ef581f913117 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240610135401-a8a62080eff3 // indirect
 )
