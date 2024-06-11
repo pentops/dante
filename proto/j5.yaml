@@ -1,0 +1,17 @@
+---
+registry:
+  organization: pentops
+  name: dante
+
+options:
+  trimSubPackages:
+    - service
+    - topic
+  wrapOneof: true
+  shortEnums:
+    unspecifiedSuffix: UNSPECIFIED
+    strictUnmarshal: true
+
+packages:
+  - label: Dante
+    name: o5.dante.v1

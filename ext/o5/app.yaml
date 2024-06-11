@@ -9,10 +9,10 @@ awsConfig:
   sqs_publish_anywhere:
     send_anywhere: true
 
+
 databases:
   - name: main
     postgres:
-      dbName: dante
       serverGroup: default
       dbExtensions:
         - "uuid-ossp"
@@ -30,7 +30,6 @@ databases:
 
 runtimes:
   - name: main
-    grantMetaDeployPermissions: false
 
     routes:
       - prefix: "/dante/v1/*"
@@ -38,6 +37,9 @@ runtimes:
 
     subscriptions:
       - name: "/o5.messaging.v1.topic.DeadMessageTopic"
+
+    workerConfig:
+      noDeadLetters: true
 
     containers:
       - name: main

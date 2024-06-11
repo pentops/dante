@@ -2,7 +2,7 @@
 
 generate:
   - name: go
-    src: ./proto/
+    src: [./proto/]
     out: ./gen/
     opts:
       paths: import
