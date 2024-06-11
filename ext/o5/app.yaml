@@ -39,7 +39,7 @@ runtimes:
       - name: "/o5.messaging.v1.topic.DeadMessageTopic"
 
     workerConfig:
-      noDeadLetters: true
+      noDeadletters: true
 
     containers:
       - name: main
