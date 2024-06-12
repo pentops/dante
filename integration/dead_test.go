@@ -2,20 +2,21 @@ package integration
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_pb"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_spb"
-	"github.com/pentops/dante/gen/o5/dante/v1/dante_tpb"
 	"github.com/pentops/flowtest"
 	"github.com/pentops/flowtest/prototest"
+	"github.com/pentops/o5-go/messaging/v1/messaging_pb"
+	"github.com/pentops/o5-go/messaging/v1/messaging_tpb"
+	"github.com/pentops/o5-runtime-sidecar/awsmsg"
 	"github.com/pentops/protostate/gen/list/v1/psml_pb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/dynamicpb"
-	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestReplay(tt *testing.T) {
@@ -24,38 +25,48 @@ func TestReplay(tt *testing.T) {
 	uu := NewUniverse(ctx, tt)
 	defer uu.RunSteps(tt)
 
-	msg := &dante_tpb.DeadMessage{
-		MessageId:      uuid.NewString(),
-		InfraMessageId: uuid.NewString(),
-
-		QueueName: "test",
-		GrpcName:  "test.Foo",
-
-		Timestamp: timestamppb.Now(),
-
-		Payload: &dante_pb.Any{
-			Json: string("fake json"),
+	msg := &messaging_tpb.DeadMessage{
+		DeathId:    uuid.NewString(),
+		HandlerApp: "app",
+		HandlerEnv: "env",
+		Message: &messaging_pb.Message{
+			MessageId:   uuid.NewString(),
+			GrpcService: "test.Foo",
+			GrpcMethod:  "Bar",
+			Body: &messaging_pb.Any{
+				TypeUrl:  "type.googleapis.com/test.Foo",
+				Value:    []byte(`{"fake": "json"}`),
+				Encoding: messaging_pb.WireEncoding_PROTOJSON,
+			},
+		},
+		Infra: &messaging_tpb.Infra{
+			Type: "SQS",
+			Metadata: map[string]string{
+				"queueUrl": "https://test/Queue",
+				"ignore":   "me",
+				"attr:foo": "bar",
+			},
 		},
 
-		Problem: &dante_pb.Problem{
-			Type: &dante_pb.Problem_UnhandledError{
-				UnhandledError: &dante_pb.UnhandledError{
+		Problem: &messaging_tpb.Problem{
+			Type: &messaging_tpb.Problem_UnhandledError_{
+				UnhandledError: &messaging_tpb.Problem_UnhandledError{
 					Error: "test error",
 				},
 			},
 		},
 	}
 
-	uu.Step("Create a dead letter", func(t flowtest.Asserter) {
+	uu.Step("Create a dead letter", func(ctx context.Context, t flowtest.Asserter) {
 		_, err := uu.DeadMessageWorker.Dead(ctx, msg)
 		t.NoError(err)
 	})
 
 	// replay it
-	uu.Step("Replay dead letter", func(t flowtest.Asserter) {
+	uu.Step("Replay dead letter", func(ctx context.Context, t flowtest.Asserter) {
 		msgsSent := len(uu.FakeSqs.Msgs)
 		replayReq := &dante_spb.ReplayDeadMessageRequest{
-			MessageId: msg.MessageId,
+			MessageId: msg.DeathId,
 		}
 		_, err := uu.DeadMessageCommand.ReplayDeadMessage(ctx, replayReq)
 		t.NoError(err)
@@ -63,9 +74,36 @@ func TestReplay(tt *testing.T) {
 		t.Equal(msgsSent+1, len(uu.FakeSqs.Msgs))
 		// assume latest message was ours
 		a := uu.FakeSqs.Msgs[len(uu.FakeSqs.Msgs)-1]
-		t.Equal("application/json", *a.MessageAttributes["Content-Type"].StringValue)
-		t.Equal("test.Foo", *a.MessageAttributes["grpc-service"].StringValue)
+		t.Equal("https://test/Queue", *a.QueueUrl)
+		t.Equal("bar", *a.MessageAttributes["foo"].StringValue)
+		_, hasIgnore := a.MessageAttributes["ignore"]
+		t.Equal(false, hasIgnore)
+
+		msg := decodeMessage(t, a.MessageBody)
+		t.Equal("test.Foo", msg.GrpcService)
 	})
+}
+
+type TB interface {
+	Fatal(args ...interface{})
+}
+
+func decodeMessage(t TB, body *string) *messaging_pb.Message {
+	if body == nil {
+		t.Fatal("Body is nil")
+		return nil // linter...
+	}
+	wrapper := awsmsg.EventBridgeWrapper{}
+	if err := json.Unmarshal([]byte(*body), &wrapper); err != nil {
+		t.Fatal(err)
+	}
+
+	msg := &messaging_pb.Message{}
+	if err := protojson.Unmarshal(wrapper.Detail, msg); err != nil {
+		t.Fatal(err)
+	}
+
+	return msg
 }
 
 func TestUpdate(tt *testing.T) {
@@ -74,36 +112,38 @@ func TestUpdate(tt *testing.T) {
 	uu := NewUniverse(ctx, tt)
 	defer uu.RunSteps(tt)
 
-	msg := &dante_tpb.DeadMessage{
-		MessageId:      uuid.NewString(),
-		InfraMessageId: uuid.NewString(),
-
-		QueueName: "test",
-		GrpcName:  "test.Foo",
-
-		Timestamp: timestamppb.Now(),
-
-		Payload: &dante_pb.Any{
-			Json: string("fake json"),
+	msg := &messaging_tpb.DeadMessage{
+		DeathId:    uuid.NewString(),
+		HandlerApp: "app",
+		HandlerEnv: "env",
+		Message: &messaging_pb.Message{
+			MessageId:   uuid.NewString(),
+			GrpcService: "test.Foo",
+			GrpcMethod:  "Bar",
+			Body: &messaging_pb.Any{
+				TypeUrl:  "type.googleapis.com/test.Foo",
+				Value:    []byte(`{"fake": "json"}`),
+				Encoding: messaging_pb.WireEncoding_PROTOJSON,
+			},
 		},
 
-		Problem: &dante_pb.Problem{
-			Type: &dante_pb.Problem_UnhandledError{
-				UnhandledError: &dante_pb.UnhandledError{
+		Problem: &messaging_tpb.Problem{
+			Type: &messaging_tpb.Problem_UnhandledError_{
+				UnhandledError: &messaging_tpb.Problem_UnhandledError{
 					Error: "test error",
 				},
 			},
 		},
 	}
 
-	uu.Step("Create a dead letter", func(t flowtest.Asserter) {
+	uu.Step("Create a dead letter", func(ctx context.Context, t flowtest.Asserter) {
 		_, err := uu.DeadMessageWorker.Dead(ctx, msg)
 		t.NoError(err)
 	})
 
-	uu.Step("Get a specific dead message", func(t flowtest.Asserter) {
+	uu.Step("Get a specific dead message", func(ctx context.Context, t flowtest.Asserter) {
 		req := &dante_spb.GetDeadMessageRequest{
-			MessageId: &msg.MessageId,
+			MessageId: &msg.DeathId,
 		}
 
 		resp, err := uu.DeadMessageQuery.GetDeadMessage(ctx, req)
@@ -111,21 +151,27 @@ func TestUpdate(tt *testing.T) {
 		t.Equal(dante_pb.MessageStatus_MESSAGE_STATUS_CREATED, resp.Message.Status)
 	})
 
-	uu.Step("Update the letter", func(t flowtest.Asserter) {
-		newVersion := dante_pb.DeadMessageSpec{
-			VersionId:      uuid.NewString(),
-			InfraMessageId: msg.InfraMessageId,
-			QueueName:      "new-queue-name",
-			GrpcName:       msg.GrpcName + "EDITED",
-			Payload: &dante_pb.Any{
-				Json: string("EDITED fake json"),
+	uu.Step("Update the letter", func(ctx context.Context, t flowtest.Asserter) {
+		newVersion := &dante_pb.DeadMessageVersion{
+			VersionId: uuid.NewString(),
+			Message: &messaging_pb.Message{
+				MessageId:   uuid.NewString(),
+				GrpcService: "test.Foo",
+				GrpcMethod:  "NewMethod",
+				Body: &messaging_pb.Any{
+					TypeUrl:  "type.googleapis.com/test.Foo",
+					Value:    []byte(`{"new": "json"}`),
+					Encoding: messaging_pb.WireEncoding_PROTOJSON,
+				},
 			},
-			CreatedAt: timestamppb.Now(),
+			SqsMessage: &dante_pb.DeadMessageVersion_SQSMessage{
+				QueueUrl: "https://test/NewQueue",
+			},
 		}
 		req := &dante_spb.UpdateDeadMessageRequest{
-			MessageId:         msg.MessageId,
-			ReplacesVersionId: msg.MessageId,
-			Message:           &newVersion,
+			MessageId:         msg.DeathId,
+			ReplacesVersionId: msg.DeathId,
+			Message:           newVersion,
 		}
 
 		resp, err := uu.DeadMessageCommand.UpdateDeadMessage(ctx, req)
@@ -139,7 +185,7 @@ func TestUpdate(tt *testing.T) {
 		}
 
 		r := &dante_spb.GetDeadMessageRequest{
-			MessageId: &msg.MessageId,
+			MessageId: &msg.DeathId,
 		}
 
 		res, err := uu.DeadMessageQuery.GetDeadMessage(ctx, r)
@@ -150,7 +196,7 @@ func TestUpdate(tt *testing.T) {
 		}
 
 		m := res.Message
-		t.Equal(msg.MessageId, m.Keys.MessageId)
+		t.Equal(msg.DeathId, m.Keys.MessageId)
 		t.Equal(m.Status, dante_pb.MessageStatus_MESSAGE_STATUS_UPDATED)
 
 		if len(res.Events) != 2 {
@@ -158,10 +204,10 @@ func TestUpdate(tt *testing.T) {
 		}
 
 		var updated *dante_pb.DeadMessageEventType_Updated
-		var created *dante_pb.DeadMessageEventType_Created
+		var created *dante_pb.DeadMessageEventType_Notified
 		for a := range res.Events {
-			if res.Events[a].Event.GetCreated() != nil {
-				created = res.Events[a].Event.GetCreated()
+			if res.Events[a].Event.GetNotified() != nil {
+				created = res.Events[a].Event.GetNotified()
 			}
 			if res.Events[a].Event.GetUpdated() != nil {
 				updated = res.Events[a].Event.GetUpdated()
@@ -173,14 +219,14 @@ func TestUpdate(tt *testing.T) {
 		if updated == nil {
 			t.Fatal("Couldn't find updated event")
 		} else { // a little silliness to convince the linter it's okay to access the variable
-			t.Equal("new-queue-name", updated.Spec.QueueName)
+			t.Equal(`{"new": "json"}`, string(updated.Spec.Message.Body.Value))
 		}
 	})
 
-	uu.Step("Replay dead letter", func(t flowtest.Asserter) {
+	uu.Step("Replay dead letter", func(ctx context.Context, t flowtest.Asserter) {
 		msgsSent := len(uu.FakeSqs.Msgs)
 		replayReq := &dante_spb.ReplayDeadMessageRequest{
-			MessageId: msg.MessageId,
+			MessageId: msg.DeathId,
 		}
 		_, err := uu.DeadMessageCommand.ReplayDeadMessage(ctx, replayReq)
 		t.NoError(err)
@@ -188,9 +234,11 @@ func TestUpdate(tt *testing.T) {
 		t.Equal(msgsSent+1, len(uu.FakeSqs.Msgs))
 		// assume latest message was ours
 		a := uu.FakeSqs.Msgs[len(uu.FakeSqs.Msgs)-1]
-		t.Equal("application/json", *a.MessageAttributes["Content-Type"].StringValue)
-		t.Equal("test.FooEDITED", *a.MessageAttributes["grpc-service"].StringValue)
-		t.Equal("EDITED fake json", *a.MessageBody)
+		msg := decodeMessage(t, a.MessageBody)
+		t.Equal("test.Foo", msg.GrpcService)
+		t.Equal("NewMethod", msg.GrpcMethod)
+		t.Equal(`{"new": "json"}`, string(msg.Body.Value))
+		t.Equal("https://test/NewQueue", *a.QueueUrl)
 	})
 
 }
@@ -201,36 +249,38 @@ func TestShelve(tt *testing.T) {
 	uu := NewUniverse(ctx, tt)
 	defer uu.RunSteps(tt)
 
-	msg := &dante_tpb.DeadMessage{
-		MessageId:      uuid.NewString(),
-		InfraMessageId: uuid.NewString(),
-
-		QueueName: "test",
-		GrpcName:  "test.Foo",
-
-		Timestamp: timestamppb.Now(),
-
-		Payload: &dante_pb.Any{
-			Json: string("fake json"),
+	msg := &messaging_tpb.DeadMessage{
+		DeathId:    uuid.NewString(),
+		HandlerApp: "app",
+		HandlerEnv: "env",
+		Message: &messaging_pb.Message{
+			MessageId:   uuid.NewString(),
+			GrpcService: "test.Foo",
+			GrpcMethod:  "Bar",
+			Body: &messaging_pb.Any{
+				TypeUrl:  "type.googleapis.com/test.Foo",
+				Value:    []byte(`{"fake": "json"}`),
+				Encoding: messaging_pb.WireEncoding_PROTOJSON,
+			},
 		},
 
-		Problem: &dante_pb.Problem{
-			Type: &dante_pb.Problem_UnhandledError{
-				UnhandledError: &dante_pb.UnhandledError{
+		Problem: &messaging_tpb.Problem{
+			Type: &messaging_tpb.Problem_UnhandledError_{
+				UnhandledError: &messaging_tpb.Problem_UnhandledError{
 					Error: "test error",
 				},
 			},
 		},
 	}
 
-	uu.Step("Create a dead letter", func(t flowtest.Asserter) {
+	uu.Step("Create a dead letter", func(ctx context.Context, t flowtest.Asserter) {
 		_, err := uu.DeadMessageWorker.Dead(ctx, msg)
 		t.NoError(err)
 	})
 
-	uu.Step("Get a specific dead message", func(t flowtest.Asserter) {
+	uu.Step("Get a specific dead message", func(ctx context.Context, t flowtest.Asserter) {
 		req := &dante_spb.GetDeadMessageRequest{
-			MessageId: &msg.MessageId,
+			MessageId: &msg.DeathId,
 		}
 
 		resp, err := uu.DeadMessageQuery.GetDeadMessage(ctx, req)
@@ -238,9 +288,9 @@ func TestShelve(tt *testing.T) {
 		t.Equal(dante_pb.MessageStatus_MESSAGE_STATUS_CREATED, resp.Message.Status)
 	})
 
-	uu.Step("Shelve the letter", func(t flowtest.Asserter) {
+	uu.Step("Shelve the letter", func(ctx context.Context, t flowtest.Asserter) {
 		req := &dante_spb.RejectDeadMessageRequest{
-			MessageId: msg.MessageId,
+			MessageId: msg.DeathId,
 			Reason:    "not valid",
 		}
 
@@ -250,7 +300,7 @@ func TestShelve(tt *testing.T) {
 		t.Equal(dante_pb.MessageStatus_MESSAGE_STATUS_REJECTED, resp.Message.Status)
 
 		r := &dante_spb.GetDeadMessageRequest{
-			MessageId: &msg.MessageId,
+			MessageId: &msg.DeathId,
 		}
 
 		res, err := uu.DeadMessageQuery.GetDeadMessage(ctx, r)
@@ -261,7 +311,7 @@ func TestShelve(tt *testing.T) {
 		}
 
 		m := res.Message
-		t.Equal(msg.MessageId, m.Keys.MessageId)
+		t.Equal(msg.DeathId, m.Keys.MessageId)
 		t.Equal(m.Status, dante_pb.MessageStatus_MESSAGE_STATUS_REJECTED)
 
 		if len(res.Events) != 2 {
@@ -269,10 +319,10 @@ func TestShelve(tt *testing.T) {
 		}
 
 		var rejected *dante_pb.DeadMessageEventType_Rejected
-		var created *dante_pb.DeadMessageEventType_Created
+		var created *dante_pb.DeadMessageEventType_Notified
 		for a := range res.Events {
-			if res.Events[a].Event.GetCreated() != nil {
-				created = res.Events[a].Event.GetCreated()
+			if res.Events[a].Event.GetNotified() != nil {
+				created = res.Events[a].Event.GetNotified()
 			}
 			if res.Events[a].Event.GetRejected() != nil {
 				rejected = res.Events[a].Event.GetRejected()
@@ -294,7 +344,6 @@ func TestFieldPath(tt *testing.T) {
 	defer cancel()
 	uu := NewUniverse(ctx, tt)
 	defer uu.RunSteps(tt)
-	var msg *dante_tpb.DeadMessage
 
 	descFiles := prototest.DescriptorsFromSource(tt, map[string]string{
 		"test.proto": `
@@ -313,52 +362,45 @@ func TestFieldPath(tt *testing.T) {
 
 	foo := dynamicpb.NewMessageType(fooDesc).New().Interface()
 
-	pb, err := proto.Marshal(foo)
-	if err != nil {
-		tt.Fatal(err)
-	}
-
 	b, err := protojson.Marshal(foo)
 	if err != nil {
 		tt.Fatal(err)
 	}
 
-	msg = &dante_tpb.DeadMessage{
-		MessageId:      uuid.NewString(),
-		InfraMessageId: uuid.NewString(),
-
-		QueueName: "test",
-		GrpcName:  "test.Foo",
-
-		Timestamp: timestamppb.Now(),
-
-		Payload: &dante_pb.Any{
-			Proto: &anypb.Any{
-				TypeUrl: "type.googleapis.com/test.Foo",
-				Value:   pb,
+	msg := &messaging_tpb.DeadMessage{
+		DeathId:    uuid.NewString(),
+		HandlerApp: "app",
+		HandlerEnv: "env",
+		Message: &messaging_pb.Message{
+			MessageId:   uuid.NewString(),
+			GrpcService: "test.Foo",
+			GrpcMethod:  "Bar",
+			Body: &messaging_pb.Any{
+				TypeUrl:  "type.googleapis.com/test.Foo",
+				Value:    b,
+				Encoding: messaging_pb.WireEncoding_PROTOJSON,
 			},
-			Json: string(b),
 		},
 
-		Problem: &dante_pb.Problem{
-			Type: &dante_pb.Problem_UnhandledError{
-				UnhandledError: &dante_pb.UnhandledError{
+		Problem: &messaging_tpb.Problem{
+			Type: &messaging_tpb.Problem_UnhandledError_{
+				UnhandledError: &messaging_tpb.Problem_UnhandledError{
 					Error: "test error",
 				},
 			},
 		},
 	}
 
-	uu.Step("Create two dead letters", func(t flowtest.Asserter) {
+	uu.Step("Create two dead letters", func(ctx context.Context, t flowtest.Asserter) {
 		_, err := uu.DeadMessageWorker.Dead(ctx, msg)
 		t.NoError(err)
 
-		msg.MessageId = uuid.NewString()
+		msg.DeathId = uuid.NewString()
 		_, err = uu.DeadMessageWorker.Dead(ctx, msg)
 		t.NoError(err)
 	})
 
-	uu.Step("List all dead messages", func(t flowtest.Asserter) {
+	uu.Step("List all dead messages", func(ctx context.Context, t flowtest.Asserter) {
 		req := &dante_spb.ListDeadMessagesRequest{}
 
 		resp, err := uu.DeadMessageQuery.ListDeadMessages(ctx, req)
@@ -368,7 +410,7 @@ func TestFieldPath(tt *testing.T) {
 		}
 	})
 
-	uu.Step("Get a small page of dead messages", func(t flowtest.Asserter) {
+	uu.Step("Get a small page of dead messages", func(ctx context.Context, t flowtest.Asserter) {
 		req := &dante_spb.ListDeadMessagesRequest{
 			Page: &psml_pb.PageRequest{
 				PageSize: proto.Int64(1),
@@ -382,11 +424,11 @@ func TestFieldPath(tt *testing.T) {
 		}
 	})
 
-	uu.Step("List sorted dead messages", func(t flowtest.Asserter) {
+	uu.Step("List sorted dead messages", func(ctx context.Context, t flowtest.Asserter) {
 		req := &dante_spb.ListDeadMessagesRequest{
 			Query: &psml_pb.QueryRequest{
 				Sorts: []*psml_pb.Sort{
-					{Field: "data.currentSpec.createdAt"},
+					{Field: "metadata.createdAt"},
 				},
 			},
 		}
@@ -398,9 +440,9 @@ func TestFieldPath(tt *testing.T) {
 		}
 	})
 
-	uu.Step("Get a specific dead message", func(t flowtest.Asserter) {
+	uu.Step("Get a specific dead message", func(ctx context.Context, t flowtest.Asserter) {
 		req := &dante_spb.GetDeadMessageRequest{
-			MessageId: &msg.MessageId,
+			MessageId: &msg.DeathId,
 		}
 
 		resp, err := uu.DeadMessageQuery.GetDeadMessage(ctx, req)
@@ -412,19 +454,16 @@ func TestFieldPath(tt *testing.T) {
 
 		m := resp.Message
 
-		t.Equal(msg.MessageId, m.Keys.MessageId)
+		t.Equal(msg.DeathId, m.Keys.MessageId)
 		t.Equal(m.Status, dante_pb.MessageStatus_CREATED)
 
-		if m.Data.CurrentSpec == nil {
+		if m.Data.CurrentVersion == nil {
 			t.Fatal("CurrentSpec is nil")
 		}
 
-		c := m.Data.CurrentSpec
+		c := m.Data.CurrentVersion
 
-		t.Equal(msg.InfraMessageId, c.InfraMessageId)
-		t.Equal(msg.QueueName, c.QueueName)
-
-		if c.Payload == nil {
+		if c.Message == nil || c.Message.Body == nil {
 			t.Fatal("Payload is nil")
 		}
 

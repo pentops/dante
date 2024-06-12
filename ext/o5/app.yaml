@@ -9,10 +9,10 @@ awsConfig:
   sqs_publish_anywhere:
     send_anywhere: true
 
+
 databases:
   - name: main
     postgres:
-      dbName: dante
       serverGroup: default
       dbExtensions:
         - "uuid-ossp"
@@ -30,14 +30,16 @@ databases:
 
 runtimes:
   - name: main
-    grantMetaDeployPermissions: false
 
     routes:
       - prefix: "/dante/v1/*"
         protocol: ROUTE_PROTOCOL_HTTP
 
     subscriptions:
-      - name: "dead-letter" # Match the name in o5 deployer
+      - name: "/o5.messaging.v1.topic.DeadMessageTopic"
+
+    workerConfig:
+      noDeadletters: true
 
     containers:
       - name: main
@@ -52,10 +54,6 @@ runtimes:
               databaseName: main
           - name: PUBLIC_PORT
             value: "8080"
-          - name: PROTOBUF_SRC
-            secret:
-              secretName: protobufsrc
-              jsonKey: protobufuri
           - name: SLACK_URL
             secret:
               secretName: slack

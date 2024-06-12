@@ -6,8 +6,10 @@ import (
 	context "context"
 	fmt "fmt"
 	psm_pb "github.com/pentops/protostate/gen/state/v1/psm_pb"
+	pgstore "github.com/pentops/protostate/pgstore"
 	psm "github.com/pentops/protostate/psm"
 	sqrlx "github.com/pentops/sqrlx.go/sqrlx"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // PSM DeadmessagePSM
@@ -52,7 +54,7 @@ type DeadmessagePSMEventKey = string
 
 const (
 	DeadmessagePSMEventNil      DeadmessagePSMEventKey = "<nil>"
-	DeadmessagePSMEventCreated  DeadmessagePSMEventKey = "created"
+	DeadmessagePSMEventNotified DeadmessagePSMEventKey = "notified"
 	DeadmessagePSMEventUpdated  DeadmessagePSMEventKey = "updated"
 	DeadmessagePSMEventReplayed DeadmessagePSMEventKey = "replayed"
 	DeadmessagePSMEventRejected DeadmessagePSMEventKey = "rejected"
@@ -150,8 +152,8 @@ func (msg *DeadMessageEvent) UnwrapPSMEvent() DeadmessagePSMEvent {
 		return nil
 	}
 	switch v := msg.Event.Type.(type) {
-	case *DeadMessageEventType_Created_:
-		return v.Created
+	case *DeadMessageEventType_Notified_:
+		return v.Notified
 	case *DeadMessageEventType_Updated_:
 		return v.Updated
 	case *DeadMessageEventType_Replayed_:
@@ -169,8 +171,8 @@ func (msg *DeadMessageEvent) SetPSMEvent(inner DeadmessagePSMEvent) error {
 		msg.Event = &DeadMessageEventType{}
 	}
 	switch v := inner.(type) {
-	case *DeadMessageEventType_Created:
-		msg.Event.Type = &DeadMessageEventType_Created_{Created: v}
+	case *DeadMessageEventType_Notified:
+		msg.Event.Type = &DeadMessageEventType_Notified_{Notified: v}
 	case *DeadMessageEventType_Updated:
 		msg.Event.Type = &DeadMessageEventType_Updated_{Updated: v}
 	case *DeadMessageEventType_Replayed:
@@ -188,15 +190,15 @@ type DeadmessagePSMEvent interface {
 	PSMEventKey() DeadmessagePSMEventKey
 }
 
-// EXTEND DeadMessageEventType_Created with the DeadmessagePSMEvent interface
+// EXTEND DeadMessageEventType_Notified with the DeadmessagePSMEvent interface
 
 // PSMIsSet is a helper for != nil, which does not work with generic parameters
-func (msg *DeadMessageEventType_Created) PSMIsSet() bool {
+func (msg *DeadMessageEventType_Notified) PSMIsSet() bool {
 	return msg != nil
 }
 
-func (*DeadMessageEventType_Created) PSMEventKey() DeadmessagePSMEventKey {
-	return DeadmessagePSMEventCreated
+func (*DeadMessageEventType_Notified) PSMEventKey() DeadmessagePSMEventKey {
+	return DeadmessagePSMEventNotified
 }
 
 // EXTEND DeadMessageEventType_Updated with the DeadmessagePSMEvent interface
@@ -242,42 +244,31 @@ type DeadmessagePSMTableSpec = psm.PSMTableSpec[
 ]
 
 var DefaultDeadmessagePSMTableSpec = DeadmessagePSMTableSpec{
-	State: psm.TableSpec[*DeadMessageState]{
-		TableName:  "deadmessage",
-		DataColumn: "state",
-		StoreExtraColumns: func(state *DeadMessageState) (map[string]interface{}, error) {
-			return map[string]interface{}{}, nil
+	TableMap: psm.TableMap{
+		State: psm.StateTableSpec{
+			TableName: "deadmessage",
+			Root:      &pgstore.ProtoFieldSpec{ColumnName: "state", PathFromRoot: pgstore.ProtoPathSpec{}},
 		},
-		PKFieldPaths: []string{
-			"keys.message_id",
+		Event: psm.EventTableSpec{
+			TableName:     "deadmessage_event",
+			Root:          &pgstore.ProtoFieldSpec{ColumnName: "data", PathFromRoot: pgstore.ProtoPathSpec{}},
+			ID:            &pgstore.ProtoFieldSpec{ColumnName: "id", PathFromRoot: pgstore.ProtoPathSpec{}},
+			Timestamp:     &pgstore.ProtoFieldSpec{ColumnName: "timestamp", PathFromRoot: pgstore.ProtoPathSpec{}},
+			Sequence:      &pgstore.ProtoFieldSpec{ColumnName: "sequence", PathFromRoot: pgstore.ProtoPathSpec{}},
+			StateSnapshot: &pgstore.ProtoFieldSpec{ColumnName: "state", PathFromRoot: pgstore.ProtoPathSpec{}},
 		},
+		KeyColumns: []psm.KeyColumn{{
+			ColumnName: "message_id",
+			ProtoName:  protoreflect.Name("message_id"),
+			Primary:    true,
+			Required:   true,
+		}},
 	},
-	Event: psm.TableSpec[*DeadMessageEvent]{
-		TableName:  "deadmessage_event",
-		DataColumn: "data",
-		StoreExtraColumns: func(event *DeadMessageEvent) (map[string]interface{}, error) {
-			metadata := event.Metadata
-			return map[string]interface{}{
-				"id":         metadata.EventId,
-				"timestamp":  metadata.Timestamp,
-				"cause":      metadata.Cause,
-				"sequence":   metadata.Sequence,
-				"message_id": event.Keys.MessageId,
-			}, nil
-		},
-		PKFieldPaths: []string{
-			"metadata.EventId",
-		},
-	},
-	EventPrimaryKey: func(id string, keys *DeadMessageKeys) (map[string]interface{}, error) {
-		return map[string]interface{}{
-			"id": id,
-		}, nil
-	},
-	PrimaryKey: func(keys *DeadMessageKeys) (map[string]interface{}, error) {
-		return map[string]interface{}{
+	KeyValues: func(keys *DeadMessageKeys) (map[string]string, error) {
+		keyset := map[string]string{
 			"message_id": keys.MessageId,
-		}, nil
+		}
+		return keyset, nil
 	},
 }
 

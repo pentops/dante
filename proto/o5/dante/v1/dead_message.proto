@@ -6,6 +6,8 @@ import "buf/validate/validate.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
 import "o5/auth/v1/actor.proto";
+import "o5/messaging/v1/message.proto";
+import "o5/messaging/v1/topic/dead.proto";
 import "psm/list/v1/annotations.proto";
 import "psm/state/v1/annotations.proto";
 import "psm/state/v1/metadata.proto";
@@ -34,45 +36,17 @@ message DeadMessageState {
 }
 
 message DeadMessageData {
-  DeadMessageSpec current_spec = 3;
+  o5.messaging.v1.topic.DeadMessage notification = 1;
+  DeadMessageVersion current_version = 2;
 }
 
-message DeadMessageSpec {
+message DeadMessageVersion {
   string version_id = 1 [(buf.validate.field).string.uuid = true];
-
-  // The ID used by the underlying messaging infra, can be any format
-  string infra_message_id = 2;
-
-  string queue_name = 3 [(psm.list.v1.field).string.open_text.searching = {
-    searchable: true
-    field_identifier: "queue_name"
-  }];
-  string grpc_name = 4 [(psm.list.v1.field).string.open_text.searching = {
-    searchable: true
-    field_identifier: "grpc_name"
-  }];
-
-  google.protobuf.Timestamp created_at = 5 [
-    (buf.validate.field).required = true,
-    (psm.list.v1.field).timestamp = {
-      filtering: {filterable: true},
-      sorting: {
-        sortable: true,
-        default_sort: true
-      }
-    }
-  ];
-
-  Any payload = 7;
-  Problem problem = 8;
-}
-
-message Problem {
-  oneof type {
-    option (psm.list.v1.oneof).filtering.filterable = true;
-
-    InvariantViolation invariant_violation = 1;
-    UnhandledError unhandled_error = 2;
+  o5.messaging.v1.Message message = 2;
+  SQSMessage sqs_message = 5;
+  message SQSMessage {
+    string queue_url = 1;
+    map<string, string> attributes = 2;
   }
 }
 
@@ -125,18 +99,18 @@ message DeadMessageEventType {
   oneof type {
     option (psm.list.v1.oneof).filtering.filterable = true;
 
-    Created created = 1;
+    Notified notified = 1;
     Updated updated = 2;
     Replayed replayed = 3;
     Rejected rejected = 4;
   }
 
-  message Created {
-    DeadMessageSpec spec = 1;
+  message Notified {
+    o5.messaging.v1.topic.DeadMessage notification = 1;
   }
 
   message Updated {
-    DeadMessageSpec spec = 1;
+    DeadMessageVersion spec = 1;
   }
 
   message Replayed {}

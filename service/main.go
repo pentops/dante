@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -14,11 +15,13 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_pb"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_spb"
+	"github.com/pentops/o5-runtime-sidecar/awsmsg"
 	"github.com/pentops/protostate/psm"
 
+	"github.com/pentops/log.go/log"
 	"github.com/pentops/sqrlx.go/sqrlx"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"gopkg.daemonl.com/log"
 )
 
 type ProtoJSON interface {
@@ -35,7 +38,7 @@ type DeadletterService struct {
 	sqsClient SqsSender
 
 	sm              *dante_pb.DeadmessagePSM
-	messageQuerySet dante_spb.MessagePSMQuerySet
+	messageQuerySet dante_spb.DeadmessagePSMQuerySet
 
 	dante_spb.UnimplementedDeadMessageQueryServiceServer
 	dante_spb.UnimplementedDeadMessageCommandServiceServer
@@ -47,9 +50,10 @@ func NewDeadletterServiceService(conn sqrlx.Connection, statemachine *dante_pb.D
 		return nil, err
 	}
 
-	b := dante_spb.DefaultMessagePSMQuerySpec(statemachine.StateTableSpec())
-
-	qset, err := dante_spb.NewMessagePSMQuerySet(b, psm.StateQueryOptions{})
+	qset, err := dante_spb.NewDeadmessagePSMQuerySet(
+		dante_spb.DefaultDeadmessagePSMQuerySpec(statemachine.StateTableSpec()),
+		psm.StateQueryOptions{},
+	)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't make new PSM query set: %w", err)
 	}
@@ -112,29 +116,42 @@ func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_s
 		}
 		res.Message = newState
 
-		// TODO: This belongs in a hook.
+		// TODO: The remainder of this belongs in a hook -> outbox -> worker
+
 		s := newState.Data
 
-		log.Infof(ctx, "s currentspec is %+v, grpc-service is '%v'", s.CurrentSpec, s.CurrentSpec.GrpcName)
+		log.Infof(ctx, "s currentspec is %+v, grpc-service is '/%s/%s'", s.CurrentVersion, s.CurrentVersion.Message.GrpcService, s.CurrentVersion.Message.GrpcMethod)
 
-		// Direct SQS publish: pull this out into a function
-		hdrs := map[string]types.MessageAttributeValue{
-			"grpc-service": {
+		messageBody, err := protojson.Marshal(s.CurrentVersion.Message)
+		if err != nil {
+			log.Errorf(ctx, "couldn't marshal message body: %v", err.Error())
+			return fmt.Errorf("couldn't marshal message body: %w", err)
+		}
+
+		eventBridgeWrapper := &awsmsg.EventBridgeWrapper{
+			Detail:     messageBody,
+			DetailType: awsmsg.EventBridgeO5MessageDetailType,
+		}
+
+		jsonData, err := json.Marshal(eventBridgeWrapper)
+		if err != nil {
+			log.Errorf(ctx, "couldn't marshal eventbridge wrapper: %v", err.Error())
+		}
+
+		attributes := map[string]types.MessageAttributeValue{}
+		for k, v := range s.CurrentVersion.SqsMessage.Attributes {
+			attributes[k] = types.MessageAttributeValue{
 				DataType:    aws.String("String"),
-				StringValue: aws.String(s.CurrentSpec.GrpcName),
-			},
-			"Content-Type": {
-				DataType:    aws.String("String"),
-				StringValue: aws.String("application/json"),
-			},
+				StringValue: aws.String(v),
+			}
 		}
 
 		i := sqs.SendMessageInput{
-			MessageBody:       &s.CurrentSpec.Payload.Json,
-			QueueUrl:          &s.CurrentSpec.QueueName,
-			MessageAttributes: hdrs,
+			MessageBody:       aws.String(string(jsonData)),
+			QueueUrl:          aws.String(s.CurrentVersion.SqsMessage.QueueUrl),
+			MessageAttributes: attributes,
 		}
-		log.Infof(ctx, "SQS message to be sent: %+v with body of %v and headers %+v", i, *i.MessageBody, hdrs)
+		log.Infof(ctx, "SQS message to be sent: %+v with body of %v", i, *i.MessageBody)
 		_, err = ds.sqsClient.SendMessage(ctx, &i)
 		if err != nil {
 			log.Errorf(ctx, "couldn't send SQS message for replay: %v", err.Error())
