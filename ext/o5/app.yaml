@@ -37,6 +37,7 @@ runtimes:
 
     subscriptions:
       - name: "/o5.messaging.v1.topic.DeadMessageTopic"
+        envName: "*"
 
     workerConfig:
       noDeadletters: true
