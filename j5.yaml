@@ -1,5 +1,8 @@
 ---
 
+bundles:
+  - dir: proto
+
 generate:
   - name: go
     src: [./proto/]
@@ -11,7 +14,7 @@ generate:
       - name: go
       - name: go-grpc
       - name: go-sugar
-      - name: go-messaging
+      - name: go-o5-messaging
       - name: go-psm
 
 plugins:
@@ -24,9 +27,9 @@ plugins:
   - name: go-sugar
     docker:
       image: ghcr.io/pentops/protoc-gen-go-sugar:19495b5f5ac3fd3964a03031396d83f1bc1341ca
-  - name: go-messaging
+  - name: go-o5-messaging
     docker:
-      image: ghcr.io/pentops/protoc-gen-go-messaging:9f9694311c7c2ad1d88dd6d0d3d5ece61f3c3e2c
+      image: ghcr.io/pentops/o5-messaging/protoc-gen-go-o5-messaging:9f9694311c7c2ad1d88dd6d0d3d5ece61f3c3e2c
       env:
         - PROTOC_GEN_GO_MESSAGING_EXTRA_HEADERS=api-version:$GIT_HASH
   - name: go-psm

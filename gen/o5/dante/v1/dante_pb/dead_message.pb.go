@@ -8,9 +8,9 @@ package dante_pb
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
-	auth_pb "github.com/pentops/o5-go/auth/v1/auth_pb"
-	messaging_pb "github.com/pentops/o5-go/messaging/v1/messaging_pb"
-	messaging_tpb "github.com/pentops/o5-go/messaging/v1/messaging_tpb"
+	auth_pb "github.com/pentops/o5-auth/gen/o5/auth/v1/auth_pb"
+	messaging_pb "github.com/pentops/o5-messaging/gen/o5/messaging/v1/messaging_pb"
+	messaging_tpb "github.com/pentops/o5-messaging/gen/o5/messaging/v1/messaging_tpb"
 	_ "github.com/pentops/protostate/gen/list/v1/psml_pb"
 	psm_pb "github.com/pentops/protostate/gen/state/v1/psm_pb"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"

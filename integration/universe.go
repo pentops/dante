@@ -9,7 +9,7 @@ import (
 	"github.com/pentops/dante/service"
 	"github.com/pentops/flowtest"
 	"github.com/pentops/log.go/log"
-	"github.com/pentops/o5-go/messaging/v1/messaging_tpb"
+	"github.com/pentops/o5-messaging/gen/o5/messaging/v1/messaging_tpb"
 	"github.com/pentops/pgtest.go/pgtest"
 )
 

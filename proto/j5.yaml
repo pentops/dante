@@ -7,10 +7,6 @@ options:
   trimSubPackages:
     - service
     - topic
-  wrapOneof: true
-  shortEnums:
-    unspecifiedSuffix: UNSPECIFIED
-    strictUnmarshal: true
 
 packages:
   - label: Dante
