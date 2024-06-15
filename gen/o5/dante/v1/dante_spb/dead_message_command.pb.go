@@ -9,7 +9,7 @@ package dante_spb
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	dante_pb "github.com/pentops/dante/gen/o5/dante/v1/dante_pb"
-	_ "github.com/pentops/o5-go/auth/v1/auth_pb"
+	_ "github.com/pentops/o5-auth/gen/o5/auth/v1/auth_pb"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"

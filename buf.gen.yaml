@@ -1,21 +1,24 @@
-version: v1
+version: v2
 plugins:
-  - plugin: buf.build/protocolbuffers/go:v1.31.0
+  - remote: buf.build/protocolbuffers/go:v1.31.0
     out: .
     opt: paths=import,module=github.com/pentops/dante
 
-  - name: go-messaging # github.com/pentops/protoc-gen-go-messaging
+  - local: protoc-gen-go-o5-messaging # github.com/pentops/o5-messaging/protoc-gen-go-o5-messaging
     out: .
     opt: paths=import,module=github.com/pentops/dante
 
-  - name: go-sugar # github.com/pentops/protoc-gen-go-sugar
+  - local: protoc-gen-go-sugar # github.com/pentops/protoc-gen-go-sugar
     out: .
     opt: paths=import,module=github.com/pentops/dante
 
-  - name: go-psm # github.com/pentops/protostate
+  - local: protoc-gen-go-psm # github.com/pentops/protostate
     out: .
     opt: paths=import,module=github.com/pentops/dante
 
-  - name: go-grpc # 'Official' version
+  - local: protoc-gen-go-grpc # 'Official' version
     out: .
     opt: paths=import,module=github.com/pentops/dante
+
+inputs:
+  - directory: ./proto

@@ -7,7 +7,7 @@ import (
 	"github.com/pentops/go-grpc-helpers/protovalidatemw"
 	"github.com/pentops/log.go/grpc_log"
 	"github.com/pentops/log.go/log"
-	"github.com/pentops/o5-go/auth/v1/auth_pb"
+	"github.com/pentops/o5-auth/gen/o5/auth/v1/auth_pb"
 	"github.com/pentops/protostate/gen/state/v1/psm_pb"
 	"google.golang.org/grpc"
 )

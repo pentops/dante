@@ -1,5 +1,7 @@
-version: v1
-name: buf.build/pentops/o5-deployer
+version: v2
+modules:
+  - path: ./proto
+    name: buf.build/pentops/o5-deployer
 
 deps:
   - buf.build/googleapis/googleapis
@@ -7,7 +9,8 @@ deps:
   - buf.build/pentops/listify
   - buf.build/pentops/protostate
   - buf.build/pentops/j5
-  - buf.build/pentops/o5
+  - buf.build/pentops/auth
+  - buf.build/pentops/messaging
 
 lint:
   use:

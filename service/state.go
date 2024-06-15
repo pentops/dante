@@ -8,8 +8,7 @@ import (
 )
 
 func NewDeadmessagePSM() (*dante_pb.DeadmessagePSM, error) {
-	config := dante_pb.DefaultDeadmessagePSMConfig()
-	sm, err := config.NewStateMachine()
+	sm, err := dante_pb.DeadmessagePSMBuilder().BuildStateMachine()
 	if err != nil {
 		return nil, err
 	}
@@ -44,6 +43,7 @@ func NewDeadmessagePSM() (*dante_pb.DeadmessagePSM, error) {
 			}
 
 			state.CurrentVersion = version
+			state.Notification = event.Notification
 			return nil
 		})).
 		SetStatus(dante_pb.MessageStatus_CREATED)
