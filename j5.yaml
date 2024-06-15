@@ -5,8 +5,8 @@ bundles:
 
 generate:
   - name: go
-    src: [./proto/]
-    out: ./gen/
+    src: [proto]
+    out: .
     opts:
       paths: import
       module: github.com/pentops/dante

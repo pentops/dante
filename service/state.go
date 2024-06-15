@@ -43,6 +43,7 @@ func NewDeadmessagePSM() (*dante_pb.DeadmessagePSM, error) {
 			}
 
 			state.CurrentVersion = version
+			state.Notification = event.Notification
 			return nil
 		})).
 		SetStatus(dante_pb.MessageStatus_CREATED)
