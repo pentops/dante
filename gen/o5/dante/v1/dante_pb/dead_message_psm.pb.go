@@ -316,7 +316,7 @@ func DeadmessagePSMDataHook[SE DeadmessagePSMEvent](cb func(context.Context, sqr
 }
 func DeadmessagePSMLinkHook[SE DeadmessagePSMEvent, DK psm.IKeyset, DIE psm.IInnerEvent](
 	linkDestination psm.LinkDestination[DK, DIE],
-	cb func(context.Context, *DeadMessageState, SE) (DK, DIE, error),
+	cb func(context.Context, *DeadMessageState, SE, func(DK, DIE)) error,
 ) psm.LinkHook[
 	*DeadMessageKeys,    // implements psm.IKeyset
 	*DeadMessageState,   // implements psm.IState
