@@ -1,37 +1,47 @@
 ---
-
 bundles:
-  - dir: proto
+  - name: proto
+    dir: proto
 
 generate:
   - name: go
-    src: [proto]
-    out: .
+    inputs:
+      - local: proto
+    output: .
     opts:
       paths: import
       module: github.com/pentops/dante
     plugins:
-      - name: go
-      - name: go-grpc
-      - name: go-sugar
-      - name: go-o5-messaging
-      - name: go-psm
+      - base: go
+      - base: go-grpc
+      - base: go-sugar
+      - base: go-psm
+      - base: go-o5-messaging
 
 plugins:
   - name: go
+    type: PLUGIN_PROTO
     docker:
       image: ghcr.io/pentops/protoc-gen-go:v1.32.0
+
   - name: go-grpc
+    base: go
     docker:
       image: ghcr.io/pentops/protoc-gen-go-grpc:v1.3.0
+
   - name: go-sugar
+    base: go
     docker:
       image: ghcr.io/pentops/protoc-gen-go-sugar:19495b5f5ac3fd3964a03031396d83f1bc1341ca
-  - name: go-o5-messaging
+
+  - name: go-psm
+    base: go
     docker:
-      image: ghcr.io/pentops/o5-messaging/protoc-gen-go-o5-messaging:9f9694311c7c2ad1d88dd6d0d3d5ece61f3c3e2c
+      image: ghcr.io/pentops/protoc-gen-go-protostate:07873fade6ae6e078124d38250498fcec068b6cd
+
+  - name: go-o5-messaging
+    base: go
+    docker:
+      image: ghcr.io/pentops/protoc-gen-go-o5-messaging:d8f7b29ba56513be908c4d5d2c6adee57f1ee174
       env:
         - PROTOC_GEN_GO_MESSAGING_EXTRA_HEADERS=api-version:$GIT_HASH
-  - name: go-psm
-    docker:
-      image: ghcr.io/pentops/protoc-gen-go-protostate:8daef5060f930ca57a47920ced86ed319710b62a
