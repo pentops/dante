@@ -5,10 +5,6 @@ secrets:
   - name: protobufsrc
   - name: slack
 
-awsConfig:
-  sqs_publish_anywhere:
-    send_anywhere: true
-
 
 databases:
   - name: main
@@ -34,6 +30,9 @@ runtimes:
     routes:
       - prefix: "/dante/v1/*"
         protocol: ROUTE_PROTOCOL_HTTP
+
+    namedEnvPolicies:
+      - "sqs-direct"
 
     subscriptions:
       - name: "/o5.messaging.v1.topic.DeadMessageTopic"
