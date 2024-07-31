@@ -13,12 +13,13 @@ require (
 	github.com/pentops/envconf.go v0.0.0-20240607014745-65480a3da726
 	github.com/pentops/flowtest v0.0.0-20240623020118-02bf89f30b87
 	github.com/pentops/go-grpc-helpers v0.0.0-20230815045451-2524ee695ebb
+	github.com/pentops/j5 v0.0.0-20240730234913-d8ada4061cab
 	github.com/pentops/log.go v0.0.0-20240618224413-ed85018bafd9
-	github.com/pentops/o5-auth v0.0.0-20240614180342-3765ffa80762
-	github.com/pentops/o5-messaging v0.0.0-20240614163039-d8f7b29ba565
-	github.com/pentops/o5-runtime-sidecar v0.0.0-20240630234843-65c27c06599a
+	github.com/pentops/o5-auth v0.0.0-20240711024624-27c66d6f1d01
+	github.com/pentops/o5-messaging v0.0.0-20240703174511-caef57f4978b
+	github.com/pentops/o5-runtime-sidecar v0.0.0-20240728013852-edbe764fb4ba
 	github.com/pentops/pgtest.go v0.0.0-20240604005819-2035f4562734
-	github.com/pentops/protostate v0.0.0-20240618224345-07873fade6ae
+	github.com/pentops/protostate v0.0.0-20240723002028-ae6136939c65
 	github.com/pentops/sqrlx.go v0.0.0-20240618224315-b9b023d5f689
 	github.com/pressly/goose v2.7.0+incompatible
 	golang.org/x/sync v0.7.0
@@ -52,7 +53,6 @@ require (
 	github.com/jhump/protoreflect v1.16.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/pentops/j5 v0.0.0-20240630233950-623dde7a966a // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
 	golang.org/x/exp v0.0.0-20240604190554-fc45aab8b7f8 // indirect
