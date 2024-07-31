@@ -5,19 +5,19 @@ package o5.dante.v1;
 import "buf/validate/validate.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
+import "j5/ext/v1/annotations.proto";
+import "j5/list/v1/annotations.proto";
 import "o5/auth/v1/actor.proto";
 import "o5/messaging/v1/message.proto";
 import "o5/messaging/v1/topic/dead.proto";
-import "psm/list/v1/annotations.proto";
-import "psm/state/v1/annotations.proto";
 import "psm/state/v1/metadata.proto";
 
 option go_package = "github.com/pentops/dante/gen/o5/dante/v1/dante_pb";
 
 message DeadMessageKeys {
-  option (psm.state.v1.psm).name = "deadmessage";
+  option (j5.ext.v1.psm).entity_name = "deadmessage";
   string message_id = 1 [
-    (psm.state.v1.field).primary_key = true,
+    (j5.ext.v1.key).primary_key = true,
     (buf.validate.field).string.uuid = true
   ];
 }
@@ -25,10 +25,13 @@ message DeadMessageKeys {
 message DeadMessageState {
   psm.state.v1.StateMetadata metadata = 1 [(buf.validate.field).required = true];
 
-  DeadMessageKeys keys = 2 [(buf.validate.field).required = true];
+  DeadMessageKeys keys = 2 [
+    (buf.validate.field).required = true,
+    (j5.ext.v1.field).message.flatten = true
+  ];
 
-  MessageStatus status = 3 [(psm.list.v1.field).enum.filtering = {
-    filterable: true,
+  MessageStatus status = 3 [(j5.list.v1.field).enum.filtering = {
+    filterable: true
     default_filters: ["MESSAGE_STATUS_CREATED"]
   }];
 
@@ -66,16 +69,16 @@ enum Urgency {
 }
 
 message InvariantViolation {
-  string description = 1 [(psm.list.v1.field).string.open_text.searching = {
+  string description = 1 [(j5.list.v1.field).string.open_text.searching = {
     searchable: true
     field_identifier: "description"
   }];
   Any error = 2;
-  Urgency urgency = 3 [(psm.list.v1.field).enum.filtering.filterable = true];
+  Urgency urgency = 3 [(j5.list.v1.field).enum.filtering.filterable = true];
 }
 
 message UnhandledError {
-  string error = 1 [(psm.list.v1.field).string.open_text.searching = {
+  string error = 1 [(j5.list.v1.field).string.open_text.searching = {
     searchable: true
     field_identifier: "error"
   }];
@@ -97,7 +100,7 @@ message DeadMessageEvent {
 
 message DeadMessageEventType {
   oneof type {
-    option (psm.list.v1.oneof).filtering.filterable = true;
+    option (j5.list.v1.oneof).filtering.filterable = true;
 
     Notified notified = 1;
     Updated updated = 2;

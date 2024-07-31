@@ -15,6 +15,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_pb"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_spb"
+	"github.com/pentops/o5-auth/o5auth"
 	"github.com/pentops/o5-runtime-sidecar/awsmsg"
 	"github.com/pentops/protostate/psm"
 
@@ -70,8 +71,13 @@ func NewDeadletterServiceService(conn sqrlx.Connection, statemachine *dante_pb.D
 func (ds *DeadletterService) UpdateDeadMessage(ctx context.Context, req *dante_spb.UpdateDeadMessageRequest) (*dante_spb.UpdateDeadMessageResponse, error) {
 	res := &dante_spb.UpdateDeadMessageResponse{}
 
+	action, err := o5auth.GetAuthenticatedAction(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	event := &dante_pb.DeadmessagePSMEventSpec{
-		Cause:     CommandCause(ctx),
+		Action:    action,
 		EventID:   uuid.NewString(),
 		Timestamp: time.Now(),
 		Keys: &dante_pb.DeadMessageKeys{
@@ -94,8 +100,13 @@ func (ds *DeadletterService) UpdateDeadMessage(ctx context.Context, req *dante_s
 
 func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_spb.ReplayDeadMessageRequest) (*dante_spb.ReplayDeadMessageResponse, error) {
 	res := dante_spb.ReplayDeadMessageResponse{}
+
+	action, err := o5auth.GetAuthenticatedAction(ctx)
+	if err != nil {
+		return nil, err
+	}
 	event := &dante_pb.DeadmessagePSMEventSpec{
-		Cause: CommandCause(ctx),
+		Action: action,
 		Keys: &dante_pb.DeadMessageKeys{
 			MessageId: req.MessageId,
 		},
@@ -169,9 +180,13 @@ func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_s
 
 func (ds *DeadletterService) RejectDeadMessage(ctx context.Context, req *dante_spb.RejectDeadMessageRequest) (*dante_spb.RejectDeadMessageResponse, error) {
 	res := &dante_spb.RejectDeadMessageResponse{}
+	action, err := o5auth.GetAuthenticatedAction(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	event := &dante_pb.DeadmessagePSMEventSpec{
-		Cause:     CommandCause(ctx),
+		Action:    action,
 		EventID:   uuid.NewString(),
 		Timestamp: time.Now(),
 		Keys: &dante_pb.DeadMessageKeys{
