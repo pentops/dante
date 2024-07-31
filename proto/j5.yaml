@@ -4,9 +4,9 @@ registry:
   name: dante
 
 options:
-  trimSubPackages:
-    - service
-    - topic
+  subPackages:
+    - name: service
+    - name: topic
 
 packages:
   - label: Dante

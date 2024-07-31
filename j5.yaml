@@ -43,5 +43,3 @@ plugins:
     base: go
     docker:
       image: ghcr.io/pentops/protoc-gen-go-o5-messaging:d8f7b29ba56513be908c4d5d2c6adee57f1ee174
-      env:
-        - PROTOC_GEN_GO_MESSAGING_EXTRA_HEADERS=api-version:$GIT_HASH
