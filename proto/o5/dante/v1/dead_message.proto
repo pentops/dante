@@ -4,10 +4,8 @@ package o5.dante.v1;
 
 import "buf/validate/validate.proto";
 import "google/protobuf/any.proto";
-import "google/protobuf/timestamp.proto";
 import "j5/ext/v1/annotations.proto";
 import "j5/list/v1/annotations.proto";
-import "o5/auth/v1/actor.proto";
 import "o5/messaging/v1/message.proto";
 import "o5/messaging/v1/topic/dead.proto";
 import "psm/state/v1/metadata.proto";
@@ -121,12 +119,4 @@ message DeadMessageEventType {
   message Rejected {
     string reason = 1;
   }
-}
-
-message Metadata {
-  string event_id = 1 [(buf.validate.field).string.uuid = true];
-
-  google.protobuf.Timestamp timestamp = 2 [(buf.validate.field).required = true];
-
-  o5.auth.v1.Actor actor = 3;
 }

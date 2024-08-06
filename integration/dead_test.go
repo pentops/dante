@@ -11,33 +11,15 @@ import (
 	"github.com/pentops/flowtest"
 	"github.com/pentops/flowtest/prototest"
 	"github.com/pentops/j5/gen/j5/list/v1/list_j5pb"
-	"github.com/pentops/o5-auth/o5auth"
+	"github.com/pentops/o5-auth/authtest"
 	"github.com/pentops/o5-messaging/gen/o5/messaging/v1/messaging_pb"
 	"github.com/pentops/o5-messaging/gen/o5/messaging/v1/messaging_tpb"
 	"github.com/pentops/o5-runtime-sidecar/awsmsg"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
-func withTestActor(ctx context.Context) context.Context {
-
-	jwt := map[string]interface{}{
-		"sub": "test/" + uuid.NewString(),
-	}
-	jwtJSON, err := json.Marshal(jwt)
-	if err != nil {
-		panic(err)
-	}
-
-	md := metadata.MD{o5auth.VerifiedJWTHeader: []string{
-		string(jwtJSON),
-	}}
-
-	ctx = metadata.NewOutgoingContext(ctx, md)
-	return ctx
-}
 func TestReplay(tt *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -83,7 +65,7 @@ func TestReplay(tt *testing.T) {
 
 	// replay it
 	uu.Step("Replay dead letter", func(ctx context.Context, t flowtest.Asserter) {
-		ctx = withTestActor(ctx)
+		ctx = authtest.JWTContext(ctx)
 		msgsSent := len(uu.FakeSqs.Msgs)
 		replayReq := &dante_spb.ReplayDeadMessageRequest{
 			MessageId: msg.DeathId,
@@ -172,7 +154,7 @@ func TestUpdate(tt *testing.T) {
 	})
 
 	uu.Step("Update the letter", func(ctx context.Context, t flowtest.Asserter) {
-		ctx = withTestActor(ctx)
+		ctx = authtest.JWTContext(ctx)
 		newVersion := &dante_pb.DeadMessageVersion{
 			VersionId: uuid.NewString(),
 			Message: &messaging_pb.Message{
@@ -245,7 +227,7 @@ func TestUpdate(tt *testing.T) {
 	})
 
 	uu.Step("Replay dead letter", func(ctx context.Context, t flowtest.Asserter) {
-		ctx = withTestActor(ctx)
+		ctx = authtest.JWTContext(ctx)
 		msgsSent := len(uu.FakeSqs.Msgs)
 		replayReq := &dante_spb.ReplayDeadMessageRequest{
 			MessageId: msg.DeathId,
@@ -301,6 +283,7 @@ func TestShelve(tt *testing.T) {
 	})
 
 	uu.Step("Get a specific dead message", func(ctx context.Context, t flowtest.Asserter) {
+		ctx = authtest.JWTContext(ctx)
 		req := &dante_spb.GetDeadMessageRequest{
 			MessageId: &msg.DeathId,
 		}
@@ -311,7 +294,7 @@ func TestShelve(tt *testing.T) {
 	})
 
 	uu.Step("Shelve the letter", func(ctx context.Context, t flowtest.Asserter) {
-		ctx = withTestActor(ctx)
+		ctx = authtest.JWTContext(ctx)
 		req := &dante_spb.RejectDeadMessageRequest{
 			MessageId: msg.DeathId,
 			Reason:    "not valid",
