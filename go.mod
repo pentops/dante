@@ -12,9 +12,9 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/pentops/envconf.go v0.0.0-20240806040806-dcab509e8c71
 	github.com/pentops/flowtest v0.0.0-20240806162256-23b05c4df309
-	github.com/pentops/j5 v0.0.0-20240806163133-74352b85fff4
+	github.com/pentops/j5 v0.0.0-20240806183429-9233df10dbc0
 	github.com/pentops/log.go v0.0.0-20240806161938-2742d05b4c24
-	github.com/pentops/o5-auth v0.0.0-20240806163445-5741968003b9
+	github.com/pentops/o5-auth v0.0.0-20240806173111-c0cdf17bc8ef
 	github.com/pentops/o5-messaging v0.0.0-20240806162328-c77f99413b9e
 	github.com/pentops/o5-runtime-sidecar v0.0.0-20240806163456-8ae2d8ba2f7e
 	github.com/pentops/pgtest.go v0.0.0-20240806042712-cca5bdfe6542
@@ -55,7 +55,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
-	golang.org/x/net v0.27.0 // indirect
+	golang.org/x/net v0.28.0 // indirect
 	golang.org/x/sys v0.23.0 // indirect
 	golang.org/x/text v0.17.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240805194559-2c9e96a0b5d4 // indirect
