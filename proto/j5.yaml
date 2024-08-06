@@ -1,6 +1,6 @@
 ---
 registry:
-  organization: pentops
+  owner: pentops
   name: dante
 
 options:
@@ -11,3 +11,24 @@ options:
 packages:
   - label: Dante
     name: o5.dante.v1
+
+dependencies:
+  - bufRegistry:
+      owner: bufbuild
+      name: protovalidate
+
+  - bufRegistry:
+      owner: googleapis
+      name: googleapis
+
+  - registry:
+      owner: pentops
+      name: j5
+
+  - registry:
+      owner: pentops
+      name: messaging
+
+  - registry:
+      owner: pentops
+      name: protostate

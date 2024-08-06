@@ -7,13 +7,11 @@ import "google/api/annotations.proto";
 import "j5/ext/v1/annotations.proto";
 import "j5/list/v1/page.proto";
 import "j5/list/v1/query.proto";
-import "o5/auth/v1/annotations.proto";
 import "o5/dante/v1/dead_message.proto";
 
 option go_package = "github.com/pentops/dante/gen/o5/dante/v1/dante_spb";
 
 service DeadMessageQueryService {
-  option (o5.auth.v1.default_auth).none = {};
   option (j5.ext.v1.service).state_query.entity = "deadmessage";
   rpc GetDeadMessage(GetDeadMessageRequest) returns (GetDeadMessageResponse) {
     option (google.api.http) = {get: "/dante/v1/q/message/{message_id}"};

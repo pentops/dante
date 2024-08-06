@@ -4,13 +4,12 @@ package o5.dante.v1.service;
 
 import "buf/validate/validate.proto";
 import "google/api/annotations.proto";
-import "o5/auth/v1/annotations.proto";
+import "j5/ext/v1/annotations.proto";
 import "o5/dante/v1/dead_message.proto";
 
 option go_package = "github.com/pentops/dante/gen/o5/dante/v1/dante_spb";
 
 service DeadMessageCommandService {
-  option (o5.auth.v1.default_auth).none = {};
   rpc UpdateDeadMessage(UpdateDeadMessageRequest) returns (UpdateDeadMessageResponse) {
     option (google.api.http) = {
       post: "/dante/v1/c/messages/{message_id}/update"
