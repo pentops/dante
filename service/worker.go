@@ -10,9 +10,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_pb"
+	"github.com/pentops/j5/gen/psm/state/v1/psm_pb"
 	"github.com/pentops/log.go/log"
 	"github.com/pentops/o5-messaging/gen/o5/messaging/v1/messaging_tpb"
-	"github.com/pentops/protostate/gen/state/v1/psm_pb"
 	"github.com/pentops/sqrlx.go/sqrlx"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
