@@ -18,7 +18,7 @@ require (
 	github.com/pentops/o5-messaging v0.0.0-20240806162328-c77f99413b9e
 	github.com/pentops/o5-runtime-sidecar v0.0.0-20240808190214-e6b2dab088a7
 	github.com/pentops/pgtest.go v0.0.0-20240806042712-cca5bdfe6542
-	github.com/pentops/protostate v0.0.0-20240808190417-c00e90487893
+	github.com/pentops/protostate v0.0.0-20240809151611-675c0f2d9d32
 	github.com/pentops/sqrlx.go v0.0.0-20240806064322-33adc0ac5bd4
 	github.com/pressly/goose v2.7.0+incompatible
 	golang.org/x/sync v0.8.0
