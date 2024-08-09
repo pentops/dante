@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_pb"
-	"github.com/pentops/j5/gen/psm/state/v1/psm_pb"
+	"github.com/pentops/j5/gen/j5/state/v1/psm_j5pb"
 	"github.com/pentops/log.go/log"
 	"github.com/pentops/o5-messaging/gen/o5/messaging/v1/messaging_tpb"
 	"github.com/pentops/sqrlx.go/sqrlx"
@@ -46,9 +46,9 @@ type SlackMessage struct {
 func (ds *DeadLetterWorker) Dead(ctx context.Context, req *messaging_tpb.DeadMessage) (*emptypb.Empty, error) {
 
 	event := &dante_pb.DeadmessagePSMEventSpec{
-		Cause: &psm_pb.Cause{
-			Type: &psm_pb.Cause_ExternalEvent{
-				ExternalEvent: &psm_pb.ExternalEventCause{
+		Cause: &psm_j5pb.Cause{
+			Type: &psm_j5pb.Cause_ExternalEvent{
+				ExternalEvent: &psm_j5pb.ExternalEventCause{
 					SystemName: "Dante",
 					EventName:  "Dead",
 					ExternalId: &req.DeathId,

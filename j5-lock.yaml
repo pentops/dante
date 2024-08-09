@@ -4,6 +4,6 @@ inputs:
     - name: buf/googleapis/googleapis
       version: 8bc2c51e08c447cd8886cdea48a73e14
     - name: registry/pentops/j5
-      version: e7886631f00437cc333221bea29f0a30fe1109ce
+      version: 0d9578f35b6713e70a56bdf07f3608899f71473e
     - name: registry/pentops/messaging
-      version: c77f99413b9ea8f9ff13768d77c8477790615160
+      version: 43c84e3c90c8b3bdb969a7c4a8760ff11ecd1b13
