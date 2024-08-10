@@ -15,9 +15,9 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_pb"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_spb"
-	"github.com/pentops/o5-auth/o5auth"
 	"github.com/pentops/o5-runtime-sidecar/awsmsg"
 	"github.com/pentops/protostate/psm"
+	"github.com/pentops/realms/j5auth"
 
 	"github.com/pentops/log.go/log"
 	"github.com/pentops/sqrlx.go/sqrlx"
@@ -71,7 +71,7 @@ func NewDeadletterServiceService(conn sqrlx.Connection, statemachine *dante_pb.D
 func (ds *DeadletterService) UpdateDeadMessage(ctx context.Context, req *dante_spb.UpdateDeadMessageRequest) (*dante_spb.UpdateDeadMessageResponse, error) {
 	res := &dante_spb.UpdateDeadMessageResponse{}
 
-	action, err := o5auth.GetAuthenticatedAction(ctx)
+	action, err := j5auth.GetAuthenticatedAction(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (ds *DeadletterService) UpdateDeadMessage(ctx context.Context, req *dante_s
 func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_spb.ReplayDeadMessageRequest) (*dante_spb.ReplayDeadMessageResponse, error) {
 	res := dante_spb.ReplayDeadMessageResponse{}
 
-	action, err := o5auth.GetAuthenticatedAction(ctx)
+	action, err := j5auth.GetAuthenticatedAction(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +180,7 @@ func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_s
 
 func (ds *DeadletterService) RejectDeadMessage(ctx context.Context, req *dante_spb.RejectDeadMessageRequest) (*dante_spb.RejectDeadMessageResponse, error) {
 	res := &dante_spb.RejectDeadMessageResponse{}
-	action, err := o5auth.GetAuthenticatedAction(ctx)
+	action, err := j5auth.GetAuthenticatedAction(ctx)
 	if err != nil {
 		return nil, err
 	}

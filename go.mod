@@ -12,13 +12,13 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/pentops/envconf.go v0.0.0-20240806040806-dcab509e8c71
 	github.com/pentops/flowtest v0.0.0-20240806162256-23b05c4df309
-	github.com/pentops/j5 v0.0.0-20240809205235-0d9578f35b67
+	github.com/pentops/j5 v0.0.0-20240810013210-12540c68f639
 	github.com/pentops/log.go v0.0.0-20240806161938-2742d05b4c24
-	github.com/pentops/o5-auth v0.0.0-20240809223318-7c8609beb10c
-	github.com/pentops/o5-messaging v0.0.0-20240809223038-43c84e3c90c8
-	github.com/pentops/o5-runtime-sidecar v0.0.0-20240809223544-6ec9511ba5ac
+	github.com/pentops/o5-messaging v0.0.0-20240810013929-db56de35f3ed
+	github.com/pentops/o5-runtime-sidecar v0.0.0-20240810015839-4cbad3cb2923
 	github.com/pentops/pgtest.go v0.0.0-20240806042712-cca5bdfe6542
-	github.com/pentops/protostate v0.0.0-20240809223804-bf171617e83a
+	github.com/pentops/protostate v0.0.0-20240810014359-b8c03420cbfb
+	github.com/pentops/realms v0.0.0-20240810000025-29d00346a1f8
 	github.com/pentops/sqrlx.go v0.0.0-20240806064322-33adc0ac5bd4
 	github.com/pressly/goose v2.7.0+incompatible
 	golang.org/x/sync v0.8.0
