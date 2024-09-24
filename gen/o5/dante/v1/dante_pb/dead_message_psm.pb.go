@@ -5,7 +5,6 @@ package dante_pb
 import (
 	context "context"
 	fmt "fmt"
-
 	psm_j5pb "github.com/pentops/j5/gen/j5/state/v1/psm_j5pb"
 	psm "github.com/pentops/protostate/psm"
 	sqrlx "github.com/pentops/sqrlx.go/sqrlx"
