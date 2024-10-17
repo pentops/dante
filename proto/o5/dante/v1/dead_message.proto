@@ -91,7 +91,10 @@ message Any {
 message DeadMessageEvent {
   j5.state.v1.EventMetadata metadata = 1 [(buf.validate.field).required = true];
 
-  DeadMessageKeys keys = 2 [(buf.validate.field).required = true];
+  DeadMessageKeys keys = 2 [
+    (j5.ext.v1.field).message.flatten = true,
+    (buf.validate.field).required = true
+  ];
 
   DeadMessageEventType event = 3 [(buf.validate.field).required = true];
 }
