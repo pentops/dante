@@ -15,8 +15,4 @@ packages:
 dependencies:
   - registry:
       owner: pentops
-      name: j5
-
-  - registry:
-      owner: pentops
       name: messaging
