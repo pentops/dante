@@ -82,12 +82,12 @@ func (ds *DeadLetterWorker) Dead(ctx context.Context, req *messaging_tpb.DeadMes
 			req.Message.GrpcMethod,
 			req.Problem.String(),
 		)
-		json, err := json.Marshal(msg)
+		msgJson, err := json.Marshal(msg)
 		if err != nil {
 			log.WithError(ctx, err).Error("Couldn't convert dead letter to slack message")
 			msg.Text = "(Dante error converting to slack message)"
 		}
-		res, err := http.Post(ds.slackUrl, "application/json", bytes.NewReader([]byte(json)))
+		res, err := http.Post(ds.slackUrl, "application/json", bytes.NewReader(msgJson))
 		if err != nil {
 			log.WithError(ctx, err).Error("Couldn't send deadletter notice to slack")
 		}

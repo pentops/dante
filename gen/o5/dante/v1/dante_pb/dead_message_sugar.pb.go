@@ -5,6 +5,7 @@ package dante_pb
 import (
 	driver "database/sql/driver"
 	fmt "fmt"
+	proto "google.golang.org/protobuf/proto"
 )
 
 // DeadMessageEventType is a oneof wrapper
@@ -34,6 +35,7 @@ func (x *DeadMessageEventType) TypeKey() (DeadMessageEventTypeKey, bool) {
 
 type IsDeadMessageEventTypeWrappedType interface {
 	TypeKey() DeadMessageEventTypeKey
+	proto.Message
 }
 
 func (x *DeadMessageEventType) Set(val IsDeadMessageEventTypeWrappedType) {

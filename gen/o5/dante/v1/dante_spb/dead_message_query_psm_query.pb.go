@@ -3,7 +3,9 @@
 package dante_spb
 
 import (
+	context "context"
 	psm "github.com/pentops/protostate/psm"
+	sqrlx "github.com/pentops/sqrlx.go/sqrlx"
 )
 
 // State Query Service for %sDeadmessage
@@ -68,4 +70,46 @@ func DefaultDeadmessagePSMQuerySpec(tableSpec psm.QueryTableSpec) DeadmessagePSM
 			return filter, nil
 		},
 	}
+}
+
+type DeadmessageQueryServiceImpl struct {
+	db       sqrlx.Transactor
+	querySet *DeadmessagePSMQuerySet
+	UnsafeDeadMessageQueryServiceServer
+}
+
+var _ DeadMessageQueryServiceServer = &DeadmessageQueryServiceImpl{}
+
+func NewDeadmessageQueryServiceImpl(db sqrlx.Transactor, querySet *DeadmessagePSMQuerySet) *DeadmessageQueryServiceImpl {
+	return &DeadmessageQueryServiceImpl{
+		db:       db,
+		querySet: querySet,
+	}
+}
+
+func (s *DeadmessageQueryServiceImpl) GetDeadMessage(ctx context.Context, req *GetDeadMessageRequest) (*GetDeadMessageResponse, error) {
+	resObject := &GetDeadMessageResponse{}
+	err := s.querySet.Get(ctx, s.db, req, resObject)
+	if err != nil {
+		return nil, err
+	}
+	return resObject, nil
+}
+
+func (s *DeadmessageQueryServiceImpl) ListDeadMessages(ctx context.Context, req *ListDeadMessagesRequest) (*ListDeadMessagesResponse, error) {
+	resObject := &ListDeadMessagesResponse{}
+	err := s.querySet.List(ctx, s.db, req, resObject)
+	if err != nil {
+		return nil, err
+	}
+	return resObject, nil
+}
+
+func (s *DeadmessageQueryServiceImpl) ListDeadMessageEvents(ctx context.Context, req *ListDeadMessageEventsRequest) (*ListDeadMessageEventsResponse, error) {
+	resObject := &ListDeadMessageEventsResponse{}
+	err := s.querySet.ListEvents(ctx, s.db, req, resObject)
+	if err != nil {
+		return nil, err
+	}
+	return resObject, nil
 }
