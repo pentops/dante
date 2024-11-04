@@ -15,6 +15,7 @@ option go_package = "github.com/pentops/dante/gen/o5/dante/v1/dante_pb";
 message DeadMessageKeys {
   option (j5.ext.v1.psm).entity_name = "deadmessage";
   string message_id = 1 [
+    (j5.ext.v1.field).key = {},
     (j5.ext.v1.key).primary_key = true,
     (buf.validate.field).string.uuid = true
   ];
