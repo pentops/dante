@@ -93,7 +93,10 @@ func openDatabase(ctx context.Context) (*sql.DB, error) {
 	db.SetMaxOpenConns(10)
 
 	for {
-		if err := db.Ping(); err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		if err := db.PingContext(ctx); err != nil {
 			log.WithError(ctx, err).Error("pinging PG")
 			time.Sleep(time.Second)
 			continue

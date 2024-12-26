@@ -13,7 +13,7 @@ import (
 	"github.com/pentops/j5/gen/j5/list/v1/list_j5pb"
 	"github.com/pentops/o5-messaging/gen/o5/messaging/v1/messaging_pb"
 	"github.com/pentops/o5-messaging/gen/o5/messaging/v1/messaging_tpb"
-	"github.com/pentops/o5-runtime-sidecar/awsmsg"
+	"github.com/pentops/o5-runtime-sidecar/adapters/eventbridge"
 	"github.com/pentops/realms/authtest"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -32,7 +32,7 @@ func TestReplay(tt *testing.T) {
 		HandlerEnv: "env",
 		Message: &messaging_pb.Message{
 			MessageId:   uuid.NewString(),
-			GrpcService: "test.Foo",
+			GrpcService: "test.v1.Foo",
 			GrpcMethod:  "Bar",
 			Body: &messaging_pb.Any{
 				TypeUrl:  "type.googleapis.com/test.Foo",
@@ -82,7 +82,7 @@ func TestReplay(tt *testing.T) {
 		t.Equal(false, hasIgnore)
 
 		msg := decodeMessage(t, a.MessageBody)
-		t.Equal("test.Foo", msg.GrpcService)
+		t.Equal("test.v1.Foo", msg.GrpcService)
 	})
 }
 
@@ -95,7 +95,7 @@ func decodeMessage(t TB, body *string) *messaging_pb.Message {
 		t.Fatal("Body is nil")
 		return nil // linter...
 	}
-	wrapper := awsmsg.EventBridgeWrapper{}
+	wrapper := eventbridge.EventBridgeWrapper{}
 	if err := json.Unmarshal([]byte(*body), &wrapper); err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +120,7 @@ func TestUpdate(tt *testing.T) {
 		HandlerEnv: "env",
 		Message: &messaging_pb.Message{
 			MessageId:   uuid.NewString(),
-			GrpcService: "test.Foo",
+			GrpcService: "test.v1.Foo",
 			GrpcMethod:  "Bar",
 			Body: &messaging_pb.Any{
 				TypeUrl:  "type.googleapis.com/test.Foo",

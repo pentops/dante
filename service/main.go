@@ -15,7 +15,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_pb"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_spb"
-	"github.com/pentops/o5-runtime-sidecar/awsmsg"
+	"github.com/pentops/o5-runtime-sidecar/adapters/eventbridge"
 	"github.com/pentops/protostate/psm"
 	"github.com/pentops/realms/j5auth"
 
@@ -139,9 +139,9 @@ func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_s
 			return fmt.Errorf("couldn't marshal message body: %w", err)
 		}
 
-		eventBridgeWrapper := &awsmsg.EventBridgeWrapper{
+		eventBridgeWrapper := &eventbridge.EventBridgeWrapper{
 			Detail:     messageBody,
-			DetailType: awsmsg.EventBridgeO5MessageDetailType,
+			DetailType: eventbridge.EventBridgeO5MessageDetailType,
 		}
 
 		jsonData, err := json.Marshal(eventBridgeWrapper)
