@@ -4,67 +4,56 @@ package dante_spb
 
 import (
 	context "context"
-	psm "github.com/pentops/protostate/psm"
+	fmt "fmt"
+
+	j5reflect "github.com/pentops/j5/lib/j5reflect"
+	j5schema "github.com/pentops/j5/lib/j5schema"
+	psm "github.com/pentops/j5/lib/psm"
 	sqrlx "github.com/pentops/sqrlx.go/sqrlx"
 )
 
 // State Query Service for %sDeadmessage
 // QuerySet is the query set for the Deadmessage service.
 
-type DeadmessagePSMQuerySet = psm.StateQuerySet[
-	*GetDeadMessageRequest,
-	*GetDeadMessageResponse,
-	*ListDeadMessagesRequest,
-	*ListDeadMessagesResponse,
-	*ListDeadMessageEventsRequest,
-	*ListDeadMessageEventsResponse,
-]
+type DeadmessagePSMQuerySet = psm.StateQuerySet
 
 func NewDeadmessagePSMQuerySet(
-	smSpec psm.QuerySpec[
-		*GetDeadMessageRequest,
-		*GetDeadMessageResponse,
-		*ListDeadMessagesRequest,
-		*ListDeadMessagesResponse,
-		*ListDeadMessageEventsRequest,
-		*ListDeadMessageEventsResponse,
-	],
+	smSpec psm.QuerySpec,
 	options psm.StateQueryOptions,
 ) (*DeadmessagePSMQuerySet, error) {
-	return psm.BuildStateQuerySet[
-		*GetDeadMessageRequest,
-		*GetDeadMessageResponse,
-		*ListDeadMessagesRequest,
-		*ListDeadMessagesResponse,
-		*ListDeadMessageEventsRequest,
-		*ListDeadMessageEventsResponse,
-	](smSpec, options)
+	return psm.BuildStateQuerySet(smSpec, options)
 }
 
-type DeadmessagePSMQuerySpec = psm.QuerySpec[
-	*GetDeadMessageRequest,
-	*GetDeadMessageResponse,
-	*ListDeadMessagesRequest,
-	*ListDeadMessagesResponse,
-	*ListDeadMessageEventsRequest,
-	*ListDeadMessageEventsResponse,
-]
+type DeadmessagePSMQuerySpec = psm.QuerySpec
 
 func DefaultDeadmessagePSMQuerySpec(tableSpec psm.QueryTableSpec) DeadmessagePSMQuerySpec {
-	return psm.QuerySpec[
-		*GetDeadMessageRequest,
-		*GetDeadMessageResponse,
-		*ListDeadMessagesRequest,
-		*ListDeadMessagesResponse,
-		*ListDeadMessageEventsRequest,
-		*ListDeadMessageEventsResponse,
-	]{
+	return psm.QuerySpec{
+		GetMethod: &j5schema.MethodSchema{
+			Request:  j5schema.MustObjectSchema((&GetDeadMessageRequest{}).ProtoReflect().Descriptor()),
+			Response: j5schema.MustObjectSchema((&GetDeadMessageResponse{}).ProtoReflect().Descriptor()),
+		},
+		ListMethod: &j5schema.MethodSchema{
+			Request:  j5schema.MustObjectSchema((&ListDeadMessagesRequest{}).ProtoReflect().Descriptor()),
+			Response: j5schema.MustObjectSchema((&ListDeadMessagesResponse{}).ProtoReflect().Descriptor()),
+		},
+		ListEventsMethod: &j5schema.MethodSchema{
+			Request:  j5schema.MustObjectSchema((&ListDeadMessageEventsRequest{}).ProtoReflect().Descriptor()),
+			Response: j5schema.MustObjectSchema((&ListDeadMessageEventsResponse{}).ProtoReflect().Descriptor()),
+		},
 		QueryTableSpec: tableSpec,
-		ListRequestFilter: func(req *ListDeadMessagesRequest) (map[string]interface{}, error) {
+		ListRequestFilter: func(reqReflect j5reflect.Object) (map[string]interface{}, error) {
+			req, ok := reqReflect.Interface().(*ListDeadMessagesRequest)
+			if !ok {
+				return nil, fmt.Errorf("expected *ListDeadMessagesRequest but got %T", req)
+			}
 			filter := map[string]interface{}{}
 			return filter, nil
 		},
-		ListEventsRequestFilter: func(req *ListDeadMessageEventsRequest) (map[string]interface{}, error) {
+		ListEventsRequestFilter: func(reqReflect j5reflect.Object) (map[string]interface{}, error) {
+			req, ok := reqReflect.Interface().(*ListDeadMessageEventsRequest)
+			if !ok {
+				return nil, fmt.Errorf("expected *ListDeadMessageEventsRequest but got %T", req)
+			}
 			filter := map[string]interface{}{}
 			filter["message_id"] = req.MessageId
 			return filter, nil
@@ -89,7 +78,7 @@ func NewDeadmessageQueryServiceImpl(db sqrlx.Transactor, querySet *DeadmessagePS
 
 func (s *DeadmessageQueryServiceImpl) GetDeadMessage(ctx context.Context, req *GetDeadMessageRequest) (*GetDeadMessageResponse, error) {
 	resObject := &GetDeadMessageResponse{}
-	err := s.querySet.Get(ctx, s.db, req, resObject)
+	err := s.querySet.Get(ctx, s.db, req.J5Object(), resObject.J5Object())
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +87,7 @@ func (s *DeadmessageQueryServiceImpl) GetDeadMessage(ctx context.Context, req *G
 
 func (s *DeadmessageQueryServiceImpl) ListDeadMessages(ctx context.Context, req *ListDeadMessagesRequest) (*ListDeadMessagesResponse, error) {
 	resObject := &ListDeadMessagesResponse{}
-	err := s.querySet.List(ctx, s.db, req, resObject)
+	err := s.querySet.List(ctx, s.db, req.J5Object(), resObject.J5Object())
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +96,7 @@ func (s *DeadmessageQueryServiceImpl) ListDeadMessages(ctx context.Context, req 
 
 func (s *DeadmessageQueryServiceImpl) ListDeadMessageEvents(ctx context.Context, req *ListDeadMessageEventsRequest) (*ListDeadMessageEventsResponse, error) {
 	resObject := &ListDeadMessageEventsResponse{}
-	err := s.querySet.ListEvents(ctx, s.db, req, resObject)
+	err := s.querySet.ListEvents(ctx, s.db, req.J5Object(), resObject.J5Object())
 	if err != nil {
 		return nil, err
 	}

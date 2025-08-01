@@ -33,8 +33,8 @@ func NewDeadmessagePSM() (*dante_pb.DeadmessagePSM, error) {
 					for k, v := range infra.Metadata {
 						if k == "queueUrl" {
 							sqsmsg.QueueUrl = v
-						} else if strings.HasPrefix(k, "attr:") {
-							k = strings.TrimPrefix(k, "attr:")
+						} else if after, ok := strings.CutPrefix(k, "attr:"); ok {
+							k = after
 							sqsmsg.Attributes[k] = v
 						}
 					}

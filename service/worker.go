@@ -14,22 +14,19 @@ import (
 	"github.com/pentops/log.go/log"
 	"github.com/pentops/o5-messaging/gen/o5/messaging/v1/messaging_tpb"
 	"github.com/pentops/sqrlx.go/sqrlx"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type DeadLetterWorker struct {
-	db       *sqrlx.Wrapper
+	db       sqrlx.Transactor
 	sm       *dante_pb.DeadmessagePSM
 	slackUrl string
 
-	messaging_tpb.UnimplementedDeadMessageTopicServer
+	messaging_tpb.UnsafeDeadMessageTopicServer
 }
 
-func NewDeadLetterWorker(conn sqrlx.Connection, stateMachine *dante_pb.DeadmessagePSM, slack string) (*DeadLetterWorker, error) {
-	db, err := sqrlx.New(conn, sqrlx.Dollar)
-	if err != nil {
-		return nil, err
-	}
+func NewDeadLetterWorker(db sqrlx.Transactor, stateMachine *dante_pb.DeadmessagePSM, slack string) (*DeadLetterWorker, error) {
 
 	return &DeadLetterWorker{
 		db:       db,
@@ -37,6 +34,10 @@ func NewDeadLetterWorker(conn sqrlx.Connection, stateMachine *dante_pb.Deadmessa
 		slackUrl: slack,
 	}, nil
 
+}
+
+func (ds *DeadLetterWorker) RegisterGRPC(s grpc.ServiceRegistrar) {
+	messaging_tpb.RegisterDeadMessageTopicServer(s, ds)
 }
 
 type SlackMessage struct {

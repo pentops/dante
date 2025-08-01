@@ -10,18 +10,18 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
-	sq "github.com/elgris/sqrl"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_pb"
 	"github.com/pentops/dante/gen/o5/dante/v1/dante_spb"
+	"github.com/pentops/j5/lib/j5codec"
+	"github.com/pentops/j5/lib/psm"
 	"github.com/pentops/o5-runtime-sidecar/adapters/eventbridge"
-	"github.com/pentops/protostate/psm"
 	"github.com/pentops/realms/j5auth"
 
 	"github.com/pentops/log.go/log"
 	"github.com/pentops/sqrlx.go/sqrlx"
-	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -35,22 +35,16 @@ type SqsSender interface {
 }
 
 type DeadletterService struct {
-	db        *sqrlx.Wrapper
+	db        sqrlx.Transactor
 	sqsClient SqsSender
 
 	sm              *dante_pb.DeadmessagePSM
-	messageQuerySet dante_spb.DeadmessagePSMQuerySet
+	messageQuerySet *dante_spb.DeadmessageQueryServiceImpl
 
-	dante_spb.UnimplementedDeadMessageQueryServiceServer
-	dante_spb.UnimplementedDeadMessageCommandServiceServer
+	dante_spb.UnsafeDeadMessageCommandServiceServer
 }
 
-func NewDeadletterServiceService(conn sqrlx.Connection, statemachine *dante_pb.DeadmessagePSM, sqsClient SqsSender) (*DeadletterService, error) {
-	db, err := sqrlx.New(conn, sq.Dollar)
-	if err != nil {
-		return nil, err
-	}
-
+func NewDeadletterServiceService(db sqrlx.Transactor, statemachine *dante_pb.DeadmessagePSM, sqsClient SqsSender) (*DeadletterService, error) {
 	qset, err := dante_spb.NewDeadmessagePSMQuerySet(
 		dante_spb.DefaultDeadmessagePSMQuerySpec(statemachine.StateTableSpec()),
 		psm.StateQueryOptions{},
@@ -62,10 +56,15 @@ func NewDeadletterServiceService(conn sqrlx.Connection, statemachine *dante_pb.D
 	return &DeadletterService{
 		db:              db,
 		sqsClient:       sqsClient,
-		messageQuerySet: *qset,
+		messageQuerySet: dante_spb.NewDeadmessageQueryServiceImpl(db, qset),
 		sm:              statemachine,
 	}, nil
 
+}
+
+func (ds *DeadletterService) RegisterGRPC(s grpc.ServiceRegistrar) {
+	dante_spb.RegisterDeadMessageCommandServiceServer(s, ds)
+	dante_spb.RegisterDeadMessageQueryServiceServer(s, ds.messageQuerySet)
 }
 
 func (ds *DeadletterService) UpdateDeadMessage(ctx context.Context, req *dante_spb.UpdateDeadMessageRequest) (*dante_spb.UpdateDeadMessageResponse, error) {
@@ -133,7 +132,7 @@ func (ds *DeadletterService) ReplayDeadMessage(ctx context.Context, req *dante_s
 
 		log.Infof(ctx, "s currentspec is %+v, grpc-service is '/%s/%s'", s.CurrentVersion, s.CurrentVersion.Message.GrpcService, s.CurrentVersion.Message.GrpcMethod)
 
-		messageBody, err := protojson.Marshal(s.CurrentVersion.Message)
+		messageBody, err := j5codec.Global.ProtoToJSON(s.CurrentVersion.Message.ProtoReflect())
 		if err != nil {
 			log.Errorf(ctx, "couldn't marshal message body: %v", err.Error())
 			return fmt.Errorf("couldn't marshal message body: %w", err)
@@ -205,22 +204,4 @@ func (ds *DeadletterService) RejectDeadMessage(ctx context.Context, req *dante_s
 	res.Message = newState
 
 	return res, nil
-}
-
-func (ds *DeadletterService) ListDeadMessageEvents(ctx context.Context, req *dante_spb.ListDeadMessageEventsRequest) (*dante_spb.ListDeadMessageEventsResponse, error) {
-	res := &dante_spb.ListDeadMessageEventsResponse{}
-
-	return res, ds.messageQuerySet.ListEvents(ctx, ds.db, req, res)
-}
-
-func (ds *DeadletterService) GetDeadMessage(ctx context.Context, req *dante_spb.GetDeadMessageRequest) (*dante_spb.GetDeadMessageResponse, error) {
-	res := &dante_spb.GetDeadMessageResponse{}
-
-	return res, ds.messageQuerySet.Get(ctx, ds.db, req, res)
-}
-
-func (ds *DeadletterService) ListDeadMessages(ctx context.Context, req *dante_spb.ListDeadMessagesRequest) (*dante_spb.ListDeadMessagesResponse, error) {
-	res := &dante_spb.ListDeadMessagesResponse{}
-
-	return res, ds.messageQuerySet.List(ctx, ds.db, req, res)
 }

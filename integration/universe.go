@@ -11,6 +11,7 @@ import (
 	"github.com/pentops/log.go/log"
 	"github.com/pentops/o5-messaging/gen/o5/messaging/v1/messaging_tpb"
 	"github.com/pentops/pgtest.go/pgtest"
+	"github.com/pentops/sqrlx.go/sqrlx"
 )
 
 type Universe struct {
@@ -47,38 +48,24 @@ func (uu *Universe) RunSteps(t *testing.T) {
 
 	ctx := context.Background()
 	conn := pgtest.GetTestDB(t, pgtest.WithDir("../ext/db"))
+	db := sqrlx.NewPostgres(conn)
 
-	log.DefaultLogger = log.NewCallbackLogger(uu.Stepper.LevelLog)
+	log.DefaultLogger = log.NewCallbackLogger(uu.LevelLog)
 
-	grpcPair := flowtest.NewGRPCPair(t, service.GRPCMiddleware()...)
-	topicPair := flowtest.NewGRPCPair(t, service.GRPCMiddleware()...)
-
-	q, err := service.NewDeadmessagePSM()
+	app, err := service.NewApp(db, &uu.FakeSqs, service.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	worker, err := service.NewDeadLetterWorker(conn, q, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	grpcPair := flowtest.NewGRPCPair(t, service.GRPCUnaryMiddleware("dev", false)...)
 
-	service, err := service.NewDeadletterServiceService(conn, q, &uu.FakeSqs)
-	if err != nil {
-		t.Fatal(err)
-	}
+	app.RegisterGRPC(grpcPair.Server)
 
-	dante_spb.RegisterDeadMessageQueryServiceServer(grpcPair.Server, service)
 	uu.DeadMessageQuery = dante_spb.NewDeadMessageQueryServiceClient(grpcPair.Client)
-
-	dante_spb.RegisterDeadMessageCommandServiceServer(grpcPair.Server, service)
 	uu.DeadMessageCommand = dante_spb.NewDeadMessageCommandServiceClient(grpcPair.Client)
-
-	messaging_tpb.RegisterDeadMessageTopicServer(topicPair.Server, worker)
-	uu.DeadMessageWorker = messaging_tpb.NewDeadMessageTopicClient(topicPair.Client)
+	uu.DeadMessageWorker = messaging_tpb.NewDeadMessageTopicClient(grpcPair.Client)
 
 	grpcPair.ServeUntilDone(t, ctx)
-	topicPair.ServeUntilDone(t, ctx)
 
 	uu.Stepper.RunSteps(t)
 }

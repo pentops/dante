@@ -11,18 +11,17 @@ import (
 	"github.com/pentops/flowtest"
 	"github.com/pentops/flowtest/prototest"
 	"github.com/pentops/j5/gen/j5/list/v1/list_j5pb"
+	"github.com/pentops/j5/lib/j5codec"
 	"github.com/pentops/o5-messaging/gen/o5/messaging/v1/messaging_pb"
 	"github.com/pentops/o5-messaging/gen/o5/messaging/v1/messaging_tpb"
 	"github.com/pentops/o5-runtime-sidecar/adapters/eventbridge"
 	"github.com/pentops/realms/authtest"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
 func TestReplay(tt *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := tt.Context()
 	uu := NewUniverse(ctx, tt)
 	defer uu.RunSteps(tt)
 
@@ -87,7 +86,7 @@ func TestReplay(tt *testing.T) {
 }
 
 type TB interface {
-	Fatal(args ...interface{})
+	Fatal(args ...any)
 }
 
 func decodeMessage(t TB, body *string) *messaging_pb.Message {
@@ -101,7 +100,7 @@ func decodeMessage(t TB, body *string) *messaging_pb.Message {
 	}
 
 	msg := &messaging_pb.Message{}
-	if err := protojson.Unmarshal(wrapper.Detail, msg); err != nil {
+	if err := j5codec.Global.JSONToProto(wrapper.Detail, msg.ProtoReflect()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -109,8 +108,7 @@ func decodeMessage(t TB, body *string) *messaging_pb.Message {
 }
 
 func TestUpdate(tt *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := tt.Context()
 	uu := NewUniverse(ctx, tt)
 	defer uu.RunSteps(tt)
 
@@ -248,8 +246,7 @@ func TestUpdate(tt *testing.T) {
 }
 
 func TestShelve(tt *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := tt.Context()
 	uu := NewUniverse(ctx, tt)
 	defer uu.RunSteps(tt)
 
@@ -346,8 +343,7 @@ func TestShelve(tt *testing.T) {
 }
 
 func TestFieldPath(tt *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := tt.Context()
 	uu := NewUniverse(ctx, tt)
 	defer uu.RunSteps(tt)
 
@@ -368,7 +364,7 @@ func TestFieldPath(tt *testing.T) {
 
 	foo := dynamicpb.NewMessageType(fooDesc).New().Interface()
 
-	b, err := protojson.Marshal(foo)
+	b, err := j5codec.Global.ProtoToJSON(foo.ProtoReflect())
 	if err != nil {
 		tt.Fatal(err)
 	}
