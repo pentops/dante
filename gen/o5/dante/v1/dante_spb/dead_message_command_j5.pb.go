@@ -4,6 +4,7 @@ package dante_spb
 
 import (
 	j5reflect "github.com/pentops/j5/lib/j5reflect"
+	j5schema "github.com/pentops/j5/lib/j5schema"
 	proto "google.golang.org/protobuf/proto"
 )
 
@@ -71,4 +72,28 @@ func (msg *RejectDeadMessageResponse) J5Reflect() j5reflect.Root {
 
 func (msg *RejectDeadMessageResponse) J5Object() j5reflect.Object {
 	return j5reflect.MustReflect(msg.ProtoReflect()).(j5reflect.Object)
+}
+
+// UpdateDeadMessage is a J5 method for service DeadMessageCommandService
+func UpdateDeadMessageJ5MethodSchema() *j5schema.MethodSchema {
+	return &j5schema.MethodSchema{
+		Request:  j5schema.MustObjectSchema((&UpdateDeadMessageRequest{}).ProtoReflect().Descriptor()),
+		Response: j5schema.MustObjectSchema((&UpdateDeadMessageResponse{}).ProtoReflect().Descriptor()),
+	}
+}
+
+// ReplayDeadMessage is a J5 method for service DeadMessageCommandService
+func ReplayDeadMessageJ5MethodSchema() *j5schema.MethodSchema {
+	return &j5schema.MethodSchema{
+		Request:  j5schema.MustObjectSchema((&ReplayDeadMessageRequest{}).ProtoReflect().Descriptor()),
+		Response: j5schema.MustObjectSchema((&ReplayDeadMessageResponse{}).ProtoReflect().Descriptor()),
+	}
+}
+
+// RejectDeadMessage is a J5 method for service DeadMessageCommandService
+func RejectDeadMessageJ5MethodSchema() *j5schema.MethodSchema {
+	return &j5schema.MethodSchema{
+		Request:  j5schema.MustObjectSchema((&RejectDeadMessageRequest{}).ProtoReflect().Descriptor()),
+		Response: j5schema.MustObjectSchema((&RejectDeadMessageResponse{}).ProtoReflect().Descriptor()),
+	}
 }
