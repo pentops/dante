@@ -2,8 +2,8 @@
 name: "dante"
 
 secrets:
-  - name: slack
-
+  - name: dante-slack
+    scope: CLUSTER
 
 databases:
   - name: main
@@ -55,5 +55,4 @@ runtimes:
             value: ":8080"
           - name: SLACK_URL
             secret:
-              secretName: slack
-              jsonKey: url
+              secretName: dante-slack
